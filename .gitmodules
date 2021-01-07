@@ -1,0 +1,3 @@
+[submodule "MMM_OPZ"]
+	path = MMM_OPZ
+	url = git@github.com:jeffreyjohnens/MMM_OPZ
