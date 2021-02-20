@@ -1,5 +1,5 @@
 [submodule "source/MMM_OPZ"]
-	path = source/MMM_OPZ
+	path = source/projects/MMM.compose/MMM_OPZ
 	url = https://bltzr@github.com/jeffreyjohnens/MMM_OPZ
 [submodule "source/min-lib"]
 	path = source/min-lib
