@@ -4,9 +4,17 @@
 ///	@license	Use of this source code is governed by the MIT License found in the License.md file.
 
 #include "c74_min.h"
+#include <vector>
+#include <string>
+#include <map>
+#include <tuple>
+
+#include "./MMM_OPZ/mmm_opz/src/mmm_opz/midi_io.h" // only needed for MIDI input/output
+#include "./MMM_OPZ/mmm_opz/src/mmm_opz/protobuf/midi.pb.h"
+#include "./MMM_OPZ/mmm_opz/src/mmm_opz/protobuf/midi.pb.cc"
+#include "./MMM_OPZ/mmm_opz/src/mmm_opz/sample_internal.h"
 
 using namespace c74::min;
-
 
 class MMM_compose : public object<MMM_compose> {
 public:
@@ -41,7 +49,7 @@ public:
         MIN_FUNCTION {
             symbol the_greeting = greeting;    // fetch the symbol itself from the attribute named greeting
 
-            cout << the_greeting << endl;    // post to the max console
+            cout << the_greeting << c74::min::endl;    // post to the max console
             output.send(the_greeting);       // send out our outlet
             return {};
         }
@@ -51,7 +59,7 @@ public:
     // post to max window == but only when the class is loaded the first time
     message<> maxclass_setup { this, "maxclass_setup",
         MIN_FUNCTION {
-            cout << "hello world" << endl;
+            cout << "hello world" << c74::min::endl;
             return {};
         }
     };
