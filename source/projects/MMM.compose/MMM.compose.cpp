@@ -76,9 +76,9 @@ public:
                     }
                 }
                 else if (args[0]=="notes" && args.size() >= 2){
-                    eventList.reserve(eventList.size()+int(args[1])*2);
+                    events.reserve(events.size()+int(args[1])*2);
                     cout << "number of notes: " << args[1] << c74::min::endl;
-                    cout << "number of stored events: " << eventList.size() << c74::min::endl;
+                    cout << "number of stored events: " << events.size() << c74::min::endl;
                 }
                 else if (args[0]=="note" && args.size() >= 5){
                     cout << "pitch: " << args[1] << c74::min::endl;
@@ -87,7 +87,7 @@ public:
                     cout << "velocity: " << args[4] << c74::min::endl;
                    
                     // Note On:
-                    eventList.emplace_back(
+                    events.emplace_back(
                         MMMevent{
                             int(float(args[2])*12),
                             args[1],
@@ -95,7 +95,7 @@ public:
                     });
                     
                     // Note Off:
-                    eventList.emplace_back(
+                    events.emplace_back(
                         MMMevent{
                             int(float(args[2])*12),
                             int( ( float(args[2])+float(args[3]) ) * 12 ),
@@ -183,7 +183,7 @@ private:
     
     // Not making a Piece struct for now - here are the Piece’s members:
     std::vector<MMMtrack> tracks{};
-    std::vector<MMMevent> eventList{};
+    std::vector<MMMevent> events{};
     int32_t resolution{12};
     
     // We need a scene struct for interaction with Live:
