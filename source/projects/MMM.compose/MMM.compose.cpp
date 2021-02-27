@@ -14,6 +14,16 @@
 #include "./MMM_OPZ/mmm_opz/src/mmm_opz/protobuf/midi.pb.cc"
 #include "./MMM_OPZ/mmm_opz/src/mmm_opz/sample_internal.h"
 
+std::string ckpt_path = "/Users/bltzr/Documents/Max 8/Packages/MMM/source/projects/MMM.compose/MMM_OPZ/OPZ_MODELS/opz_quant.pt";
+
+// This is the structure we use to define different models that are used.
+// The keys in the map are the number of bars and the model type.
+// The values in the map are the encoding class and the ckpt path.
+std::map<std::tuple<int,MODEL_TYPE>,std::tuple<ENCODER_TYPE,std::string>> ckpt_map = {
+    {{4,TRACK_MODEL},{TE_TRACK_DENSITY_ENCODER,ckpt_path}},
+    {{4,BAR_INFILL_MODEL},{TE_TRACK_DENSITY_ENCODER,ckpt_path}}
+};
+
 using namespace c74::min;
 using namespace c74::min::lib;
 
@@ -27,28 +37,9 @@ public:
     inlet<>  input	{ this, "(anything) input"  };
     outlet<> output	{ this, "(list) result" };
     
-    struct MMMevent {
-        int time{0};
-        int pitch{0};
-        int velocity{0};
-    };
-    
-    std::vector<MMMevent> eventList{};
-    
-    // For enum attributes you first define your enum class.
-    // The indices must start at zero and increase sequentially.
-
-    enum class operations : int { collect, average, product, enum_count };
-
-    // You then define the symbols to associate with your enum values.
-    // These will be indexed starting at zero.
-    // You must have one for each item in the actual enum.
-
-    enum_map operations_range = {"collect", "average", "product"};
-
-    // Finally, you create the attribute...
-    // specialized with the type of the enum and with the range passed as one of the optional args.
-
+    // Available operations
+    enum class operations : int { collect, generate, expand, enum_count };
+    enum_map operations_range = {"collect", "generate", "expand"};
     attribute<operations> operation { this, "operation", operations::collect, operations_range,
         description {"Choose the operation to perform with the input. Collect items into a list or calculate the mean from a list."}
     };
@@ -59,8 +50,32 @@ public:
     c74::min::function process = MIN_FUNCTION {
         switch (operation) {
             case operations::collect: {
+                
                 lock lock {m_mutex};
-                if (args[0]=="notes" && args.size() >= 2){
+                int trackNr{0};
+                int nBars{0};
+                MMMtrack* track{};
+                
+                if (args[0]=="trackNr" && args.size() >= 2){
+                    trackNr = int(args[1]);
+                    if ( trackNr <= tracks.size() ) {
+                        cout << "chosen track: " << trackNr << c74::min::endl;
+                        track = &tracks[trackNr];
+                    } else {
+                        cerr << "the track #" << trackNr << " doesn’t exist!" << c74::min::endl;
+                    }
+                }
+                else if (args[0]=="nBars" && args.size() >= 2){
+                    nBars = int(args[1]);
+                    if ( (track) && ( nBars <= track->bars.size() ) ) {
+                        cout << "chosen track: " << trackNr << " has " << track->bars.size() << " - filling " << nBars << " firsdt bars." << c74::min::endl;
+                    } else if ( (track) && ( nBars > track->bars.size() ) ) {
+                        cerr << "not enough bars on track #" << trackNr << " - add bars ?" << c74::min::endl;
+                    } else {
+                        cerr << "no existing track has been chosen, please choose a track!" << c74::min::endl;
+                    }
+                }
+                else if (args[0]=="notes" && args.size() >= 2){
                     eventList.reserve(eventList.size()+int(args[1])*2);
                     cout << "number of notes: " << args[1] << c74::min::endl;
                     cout << "number of stored events: " << eventList.size() << c74::min::endl;
@@ -87,22 +102,28 @@ public:
                             0
                     });
                 }
+                
+                // update Midi Piece :
+                //midi::Track *Mtrack = piece->add_tracks();
+                //midi::Bar *Mbar = Mtrack->add_bars();
+                
+                lock.unlock();
                 break;
             }
-            case operations::average: {
+            case operations::generate: {
                 lock lock {m_mutex};
-                auto x = from_atoms<std::vector<double>>(args);
-                auto y = math::mean<double>(x);
+                // do stuff
                 lock.unlock();
-                output.send(y.first, y.second);
+                // send stuff
+                output.send();
                 break;
             }
-            case operations::product: {
+            case operations::expand: {
                 lock lock {m_mutex};
-                auto x = from_atoms<std::vector<double>>(args);
-                auto y = std::accumulate(std::begin(x), std::end(x), 1.0, std::multiplies<double>());
+                // do stuff
                 lock.unlock();
-                output.send(y);
+                // send stuff
+                output.send();
                 break;
             }
             case operations::enum_count:
@@ -137,8 +158,41 @@ public:
     };
 
 private:
-    atoms m_data;
+    atoms m_data; // should go away once all cleaned from Max example
     mutex m_mutex;
+    midi::Piece *piece;
+            
+    //Creating elements to mimic MMM’s structure:
+    struct MMMevent {
+        int time{0};
+        int pitch{0};
+        int velocity{0};
+    };
+    
+    struct MMMbar {
+        std::vector<MMMevent*> events{};
+        float beatLength{4};
+    };
+    
+    struct MMMtrack {
+        std::vector<MMMbar> bars{};
+        bool isDrum{0};
+        int instrument{0}; // range [0,128)
+        TRACK_TYPE type{STANDARD_TRACK};
+    };
+    
+    // Not making a Piece struct for now - here are the Piece’s members:
+    std::vector<MMMtrack> tracks{};
+    std::vector<MMMevent> eventList{};
+    int32_t resolution{12};
+    
+    // We need a scene struct for interaction with Live:
+    struct LiveScene{
+        std::vector<MMMbar*> bars{};
+        int barOffset{0};
+        int eventOffset{0};
+    };
+               
 };
 
 MIN_EXTERNAL(MMM_compose);
