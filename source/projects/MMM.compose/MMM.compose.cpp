@@ -54,22 +54,31 @@ public:
                 lock lock {m_mutex};
                 int trackNr{0};
                 int nBars{0};
+                float barLength{0};
                 MMMtrack* track{};
                 
                 if (args[0]=="trackNr" && args.size() >= 2){
                     trackNr = int(args[1]);
-                    if ( trackNr <= tracks.size() ) {
+                    if ( trackNr < tracks.size() ) {
                         cout << "chosen track: " << trackNr << c74::min::endl;
                         track = &tracks[trackNr];
                     } else {
-                        cerr << "the track #" << trackNr << " doesn’t exist!" << c74::min::endl;
+                        cout << "the track #" << trackNr << " doesn’t exist! - creating it (and possibly previous ones" << c74::min::endl;
+                        for (int i=0; i<=trackNr; i++){
+                            tracks.emplace_back(MMMtrack());
+                        }
+                        track = &tracks[trackNr];
                     }
+                }
+                else if (args[0]=="barLength" && args.size() >= 2){
+                    barLength = args[1];
+                    cout << "Bar length: " << barLength << " quarter notes " << c74::min::endl;
                 }
                 else if (args[0]=="nBars" && args.size() >= 2){
                     nBars = int(args[1]);
-                    if ( (track) && ( nBars <= track->bars.size() ) ) {
-                        cout << "chosen track: " << trackNr << " has " << track->bars.size() << " - filling " << nBars << " firsdt bars." << c74::min::endl;
-                    } else if ( (track) && ( nBars > track->bars.size() ) ) {
+                    if ( (track) && ( nBars <= track->barNr() ) ) {
+                        cout << "chosen track: " << trackNr << " has " << track->barNr() << " - filling " << nBars << " firsdt bars." << c74::min::endl;
+                    } else if ( (track) && ( nBars > track->barNr() ) ) {
                         cerr << "not enough bars on track #" << trackNr << " - add bars ?" << c74::min::endl;
                     } else {
                         cerr << "no existing track has been chosen, please choose a track!" << c74::min::endl;
@@ -88,19 +97,19 @@ public:
                    
                     // Note On:
                     events.emplace_back(
-                        MMMevent{
+                        MMMevent(
                             int(float(args[2])*12),
                             args[1],
                             args[4]
-                    });
+                    ));
                     
                     // Note Off:
                     events.emplace_back(
-                        MMMevent{
+                        MMMevent(
                             int(float(args[2])*12),
                             int( ( float(args[2])+float(args[3]) ) * 12 ),
                             0
-                    });
+                    ));
                 }
                 
                 // update Midi Piece :
@@ -110,9 +119,31 @@ public:
                 lock.unlock();
                 break;
             }
+                
             case operations::generate: {
                 lock lock {m_mutex};
-                // do stuff
+                
+                int trackNr{0};
+                std::vector<bool> barSet{};
+                MMMtrack* track{};
+                
+                if (args[0]=="trackNr" && args.size() >= 2){
+                    trackNr = int(args[1]);
+                    if ( trackNr <= tracks.size() ) {
+                        // already existing track - update part or all of bars
+                        cout << "chosen track: " << trackNr << c74::min::endl;
+                        track = &tracks[trackNr];
+                    } else {
+                        // unexisting track - let’s create it firs
+                        cerr << "Creating new track #" << trackNr  << c74::min::endl;
+                        track = &tracks.emplace_back(MMMtrack());
+                    }
+                }
+                else if (args[0]=="bars" && args.size() >= 2){
+                    cout << "Adding " << args.size()-1 << "bars to track: " << trackNr << c74::min::endl;
+                    
+                }
+                
                 lock.unlock();
                 // send stuff
                 output.send();
@@ -163,22 +194,36 @@ private:
     midi::Piece *piece;
             
     //Creating elements to mimic MMM’s structure:
-    struct MMMevent {
-        int time{0};
-        int pitch{0};
-        int velocity{0};
+    class MMMevent {
+            int m_time{0};
+            int m_pitch{0};
+            int m_velocity{0};
+        public:
+            MMMevent(int time, int pitch, int velocity):
+                m_time(time),
+                m_pitch(pitch),
+                m_velocity(velocity)
+            {};
+            
     };
     
-    struct MMMbar {
-        std::vector<MMMevent*> events{};
-        float beatLength{4};
+    class MMMbar {
+            std::vector<MMMevent*> m_events{};
+            float m_beatLength{4};
+        public:
+            size_t eventNr() {return m_events.size();}
+            float barLength(float length) {return m_beatLength = length;};
     };
     
-    struct MMMtrack {
-        std::vector<MMMbar> bars{};
-        bool isDrum{0};
-        int instrument{0}; // range [0,128)
-        TRACK_TYPE type{STANDARD_TRACK};
+    class MMMtrack {
+            std::vector<MMMbar> m_bars{};
+            bool m_isDrum{0};
+            int m_instrument{0}; // range [0,128)
+            TRACK_TYPE m_type{STANDARD_TRACK};
+        public:
+            size_t barNr() {return m_bars.size();}
+            MMMtrack() {};
+            
     };
     
     // Not making a Piece struct for now - here are the Piece’s members:
