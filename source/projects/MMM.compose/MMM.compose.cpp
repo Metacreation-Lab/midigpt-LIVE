@@ -63,9 +63,10 @@ public:
                         cout << "chosen track: " << trackNr << c74::min::endl;
                         track = &tracks[trackNr];
                     } else {
-                        cout << "the track #" << trackNr << " doesn’t exist! - creating it (and possibly previous ones" << c74::min::endl;
-                        for (int i=0; i<=trackNr; i++){
+                        cout << "the track #" << trackNr << " doesn’t exist! - creating tracks " << tracks.size() << " to "  << trackNr << c74::min::endl;
+                        for (int i=tracks.size(); i<=trackNr; i++){
                             tracks.emplace_back(MMMtrack());
+                            cout << "creating track #" << i << c74::min::endl;
                         }
                         track = &tracks[trackNr];
                     }
@@ -80,8 +81,10 @@ public:
                         cout << "chosen track: " << trackNr << " has " << track->barNr() << " - filling " << nBars << " firsdt bars." << c74::min::endl;
                     } else if ( (track) && ( nBars > track->barNr() ) ) {
                         cerr << "not enough bars on track #" << trackNr << " - add bars ?" << c74::min::endl;
-                    } else {
+                    } else if ( !(track)) {
                         cerr << "no existing track has been chosen, please choose a track!" << c74::min::endl;
+                    }else {
+                        cerr << "no existing track has been chosen, unknown BUG!" << c74::min::endl;
                     }
                 }
                 else if (args[0]=="notes" && args.size() >= 2){
@@ -105,7 +108,7 @@ public:
                     
                     // Note Off:
                     events.emplace_back(
-                        MMMevent(
+                         MMMevent(
                             int(float(args[2])*12),
                             int( ( float(args[2])+float(args[3]) ) * 12 ),
                             0
@@ -135,13 +138,12 @@ public:
                         track = &tracks[trackNr];
                     } else {
                         // unexisting track - let’s create it firs
-                        cerr << "Creating new track #" << trackNr  << c74::min::endl;
+                        cout << "Creating new track #" << trackNr  << c74::min::endl;
                         track = &tracks.emplace_back(MMMtrack());
                     }
                 }
                 else if (args[0]=="bars" && args.size() >= 2){
                     cout << "Adding " << args.size()-1 << "bars to track: " << trackNr << c74::min::endl;
-                    
                 }
                 
                 lock.unlock();
@@ -149,6 +151,7 @@ public:
                 output.send();
                 break;
             }
+                
             case operations::expand: {
                 lock lock {m_mutex};
                 // do stuff
@@ -221,9 +224,16 @@ private:
             int m_instrument{0}; // range [0,128)
             TRACK_TYPE m_type{STANDARD_TRACK};
         public:
-            size_t barNr() {return m_bars.size();}
-            MMMtrack() {};
+            MMMtrack() {
+                //std::cout << "creating track" << c74::min::endl;
+            };
             
+            MMMtrack(MMMtrack&& other)
+            : m_bars(std::move(other.m_bars)), m_isDrum(std::move(other.m_isDrum)), m_instrument(std::move(other.m_instrument)), m_type(std::move(other.m_type))
+            {
+                //cout << "moving track" << c74::min::endl;
+            };
+            size_t barNr() {return m_bars.size();}
     };
     
     // Not making a Piece struct for now - here are the Piece’s members:
