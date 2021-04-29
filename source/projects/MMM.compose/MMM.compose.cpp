@@ -9,12 +9,12 @@
 #include <map>
 #include <tuple>
 
-#include "./MMM_OPZ/mmm_opz/src/mmm_opz/midi_io.h" // only needed for MIDI input/output
-#include "./MMM_OPZ/mmm_opz/src/mmm_opz/protobuf/midi.pb.h"
-#include "./MMM_OPZ/mmm_opz/src/mmm_opz/protobuf/midi.pb.cc"
-#include "./MMM_OPZ/mmm_opz/src/mmm_opz/sample_internal.h"
+#include "./MMM_API/src/mmm_api/midi_io.h" // only needed for MIDI input/output
+#include "./MMM_API/src/mmm_api/protobuf/midi.pb.h"
+#include "./MMM_API/src/mmm_api/protobuf/midi.pb.cc"
+#include "./MMM_API/src/mmm_api/sample_internal.h"
 
-std::string ckpt_path = "/Users/bltzr/Documents/Max 8/Packages/MMM/source/projects/MMM.compose/MMM_OPZ/OPZ_MODELS/opz_quant.pt";
+std::string ckpt_path = "/Users/bltzr/Dropbox/My Mac (Pias-MBP)/Documents/Max 8/Packages/MMM4LIVE/source/projects/MMM.compose";
 
 // This is the structure we use to define different models that are used.
 // The keys in the map are the number of bars and the model type.
