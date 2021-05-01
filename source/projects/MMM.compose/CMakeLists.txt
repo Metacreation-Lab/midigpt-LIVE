@@ -7,6 +7,7 @@ project(MMM.compose)
 
 set(C74_MIN_API_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../min-api)
 include(${C74_MIN_API_DIR}/script/min-pretarget.cmake)
+# set(Torch_DIR /Users/bltzr/dev/miniforge_x86_64/envs/pytorch_x86/lib/python3.8/site-packages/torch/share/cmake/Torch)
 
 
 #############################################################
@@ -15,7 +16,7 @@ include(${C74_MIN_API_DIR}/script/min-pretarget.cmake)
 
 set(CMAKE_PREFIX_PATH  /usr/local/lib/)
 
-add_subdirectory("MMM_OPZ/mmm_opz/")
+add_subdirectory("MMM_API/")
 
 find_package(Protobuf REQUIRED)
 find_package(Torch REQUIRED)
