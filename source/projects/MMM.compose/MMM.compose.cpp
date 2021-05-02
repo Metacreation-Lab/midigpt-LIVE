@@ -118,7 +118,7 @@ public:
                     event->set_velocity(args[4]);
                     // put in appropriate bar
                     
-                    
+                    // Note On:
                     event = piece.add_events();
                     event->set_pitch(args[1]);
                     event->set_time(int(float(args[2])*resolution));
@@ -156,6 +156,7 @@ public:
                 }
                 
                 lock.unlock();
+                
                 // send stuff
                 //output.send();
                 break;
@@ -165,8 +166,11 @@ public:
             */
             case operations::expand: {
                 lock lock {m_mutex};
+                
                 // do stuff
+                
                 lock.unlock();
+                
                 // send stuff
                 //output.send();
                 break;
