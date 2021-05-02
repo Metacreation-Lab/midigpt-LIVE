@@ -58,26 +58,29 @@ public:
             case operations::collect: {
                 
                 lock lock {m_mutex};
-                int trackNr{0};
+                
                 int nBars{0};
                 float barLength{0};
-                const midi::Track* track{nullptr};
                 // midi::Bar* bar{nullptr};
                 midi::Event* event{nullptr};
                 
+                
+                
                 if (args[0]=="trackNr" && args.size() >= 2){
                     trackNr = int(args[1]);
-                    if ( trackNr < piece->tracks_size() ) {
+                    
+                    if ( trackNr < piece.tracks_size() ) {
                         cout << "chosen track: " << trackNr << c74::min::endl;
-                        track = &piece->tracks(trackNr);
+                        track = &piece.tracks(trackNr);
                     } else {
-                        cout << "the track #" << trackNr << " doesn’t exist! - creating tracks " << piece->tracks_size() << " to "  << trackNr << c74::min::endl;
-                        for (int i=piece->tracks_size(); i<=trackNr; i++){
-                            piece->add_tracks();
+                        cout << "the track #" << trackNr << " doesn’t exist! - creating tracks " << piece.tracks_size() << " to "  << trackNr << c74::min::endl;
+                        for (int i=piece.tracks_size(); i<=trackNr; i++){
+                            piece.add_tracks();
                             cout << "creating track #" << i << c74::min::endl;
                         }
-                        track = &piece->tracks(trackNr);
+                        track = &piece.tracks(trackNr);
                     }
+                     
                 }
                 else if (args[0]=="barLength" && args.size() >= 2){
                     barLength = args[1];
@@ -85,12 +88,13 @@ public:
                 }
                 else if (args[0]=="nBars" && args.size() >= 2){
                     nBars = int(args[1]);
-                    if ( (track) && ( nBars <= track->bars_size() )) {
+                    if ( (track) && ( nBars < track->bars_size() )) {
                         cout << "chosen track: " << trackNr << " has " << track->bars_size() << " - filling " << nBars << " first bars." << c74::min::endl;
-                    } else if ( (track) && ( nBars > track->bars_size() ) ) {
+                    } else if ( (track) && ( nBars >= track->bars_size() ) ) {
                         int nAddedBars = nBars - track->bars_size();
-                        cerr << "not enough bars on track #" << trackNr << " add " << nAddedBars <<  " bars" << c74::min::endl;
-                        for (int i=0; i<nAddedBars; i++) piece->mutable_tracks(trackNr)->add_bars();
+                        cout << "not enough bars on track #" << trackNr << " add " << nAddedBars <<  " bars" << c74::min::endl;
+                        for (int i=0; i<nAddedBars; i++) piece.mutable_tracks(trackNr)->add_bars();
+                        
                     } else if ( !(track)) {
                         cerr << "no existing track has been chosen, please choose a track!" << c74::min::endl;
                     }else {
@@ -99,7 +103,7 @@ public:
                 }
                 else if (args[0]=="notes" && args.size() >= 2){
                     cout << "number of notes: " << args[1] << c74::min::endl;
-                    cout << "number of stored events: " << piece->events_size() << c74::min::endl;
+                    cout << "number of stored events: " << piece.events_size() << c74::min::endl;
                 }
                 else if (args[0]=="note" && args.size() >= 5){
                     cout << "pitch: " << args[1] << c74::min::endl;
@@ -108,14 +112,14 @@ public:
                     cout << "velocity: " << args[4] << c74::min::endl;
                    
                     // Note On:
-                    event = piece->add_events();
+                    event = piece.add_events();
                     event->set_pitch(args[1]);
                     event->set_time(int(( float(args[2])+float(args[3]))*resolution));
                     event->set_velocity(args[4]);
                     // put in appropriate bar
                     
                     
-                    event = piece->add_events();
+                    event = piece.add_events();
                     event->set_pitch(args[1]);
                     event->set_time(int(float(args[2])*resolution));
                     event->set_velocity(0);
@@ -133,21 +137,18 @@ public:
             case operations::generate: {
                 lock lock {m_mutex};
                 
-                int trackNr{0};
                 std::vector<bool> barSet{};
-                midi::Track* track{nullptr};
                 
                 if (args[0]=="trackNr" && args.size() >= 2){
                     trackNr = int(args[1]);
-                    if ( trackNr <= piece->tracks_size() ) {
+                    if ( trackNr < piece.tracks_size() ) {
                         // already existing track - update part or all of bars
                         cout << "chosen track: " << trackNr << c74::min::endl;
-                        
-                        track = piece->mutable_tracks(trackNr);
+                        track = piece.mutable_tracks(trackNr);
                     } else {
                         // unexisting track - let’s create it firs
                         cout << "Creating new track #" << trackNr  << c74::min::endl;
-                        track = piece->mutable_tracks(trackNr);
+                        track = piece.add_tracks();
                     }
                 }
                 else if (args[0]=="bars" && args.size() >= 2){
@@ -156,7 +157,7 @@ public:
                 
                 lock.unlock();
                 // send stuff
-                output.send();
+                //output.send();
                 break;
             }
             /* ///////////////////////////////////////////////////////////////
@@ -167,7 +168,7 @@ public:
                 // do stuff
                 lock.unlock();
                 // send stuff
-                output.send();
+                //output.send();
                 break;
             }
             case operations::enum_count:
@@ -250,22 +251,23 @@ public:
     message<> maxclass_setup { this, "maxclass_setup",
         MIN_FUNCTION {
             cout << "MMM compose object by Metacreation lab - SFU" << c74::min::endl;
-            piece = new midi::Piece();
-            pieceCopy = new midi::Piece();
             return {};
         }
     };
 
 /*////////////////////////////////////////////////////////////////////////
-PRIVATE MEMEBERS : Here we define private members for this class
+PRIVATE MEMBERS : Here we define private members for this class
 ////////////////////////////////////////////////////////////////////////*/
 private:
     atoms m_data; // should go away once all cleaned from Max example
     mutex m_mutex;
-    
-public:
+
+    midi::Piece piece, pieceCopy;
+            
+    const midi::Track* track{nullptr};
+    int trackNr{0};
+            
     int nrTracksMoved{0}; // for operations related to track changes
-    midi::Piece *piece, *pieceCopy;
     
     int32_t resolution{12};
     
