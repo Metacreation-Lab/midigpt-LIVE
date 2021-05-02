@@ -57,8 +57,8 @@
 	<attributelist>
 
 		<attribute name='operation' get='1' set='1' type='long' size='1' >
-			<digest>Choose the operation to perform with the input</digest>
-			<description>Choose the operation to perform with the input. Collect items into a list or calculate the mean from a list. </description>
+			<digest>Choose the operation to perform with the input: collect, generate or expand </digest>
+			<description>Choose the operation to perform with the input: collect, generate or expand </description>
 		</attribute>
 
 	</attributelist>

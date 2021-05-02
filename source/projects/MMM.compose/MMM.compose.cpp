@@ -41,11 +41,9 @@ public:
     enum class operations : int { collect, generate, expand, enum_count };
     enum_map operations_range = {"collect", "generate", "expand"};
     attribute<operations> operation { this, "operation", operations::collect, operations_range,
-        description {"Choose the operation to perform with the input. Collect items into a list or calculate the mean from a list."}
+        description {"Choose the operation to perform with the input: collect, generate or expand "}
     };
 
-
-    // Here we demonstrate sharing a function to process lists from either the 'list' or 'anything' messages.
 
     c74::min::function process = MIN_FUNCTION {
         switch (operation) {
@@ -115,6 +113,7 @@ public:
                     ));
                 }
                 
+                
                 // update Midi Piece :
                 //midi::Track *Mtrack = piece->add_tracks();
                 //midi::Bar *Mbar = Mtrack->add_bars();
@@ -163,22 +162,48 @@ public:
             case operations::enum_count:
                 break;
         }
+        
+        if (args[0]=="tracks_changed" && args.size() >= 1){
+            nrTracksMoved=0;
+            //pieceCopy->Clear();
+            cout << "Changing tracks " << nrTracksMoved << c74::min::endl;
+        }
+        else if (args[0]=="new_track" && args.size() >= 2){
+            int newTrackNr = args[1];
+            nrTracksMoved++;
+            cout << "Creating new track #" << newTrackNr << " / " <<  nrTracksMoved  << " in piece copy" << c74::min::endl;
+            //pieceCopy->add_tracks();
+        }
+        else if (args[0]=="reorder_track" && args.size() >= 3){
+            int trackNr = args[1];
+            nrTracksMoved++;
+            cout << "Moving existing track #" << trackNr << " to track #" << args[2] << " / " <<  nrTracksMoved  << " in piece copy" << c74::min::endl;
+            // move track to piece copy
+            //pieceCopy->add_tracks()->CopyFrom(piece->tracks()[trackNr]);
+        }
+        else if (args[0]=="tracks_done" && args.size() >= 2){
+            cout << "Tracks updating, swapping pieces with " << nrTracksMoved << " tracks" << c74::min::endl;
+            // piece->Clear();
+            // piece->Swap(pieceCopy);
+        }
         return {};
     };
 
     message<threadsafe::yes> list { this, "list", "Operate on the list. Either add it to the collection or calculate the mean.", process };
+    
     message<threadsafe::yes> anything { this, "anything", "Add content to the collection. Only applicable if using the 'collect' operation.", process };
     message<threadsafe::yes> number { this, "number", "Add content to the collection. Only applicable if using the 'collect' operation.", process };
 
     message<threadsafe::yes> bang { this, "bang", "Send out the collected list. Only applicable if using the 'collect' operation.",
         MIN_FUNCTION {
             lock  lock {m_mutex};
-            atoms data_copy = m_data;
-
-            m_data.clear();
+            
+            // do stuff
+            
             lock.unlock();
 
-            output.send(data_copy);
+            //output.send( stuff );
+            
             return {};
         }
     };
@@ -187,6 +212,8 @@ public:
     message<> maxclass_setup { this, "maxclass_setup",
         MIN_FUNCTION {
             cout << "MMM compose object by Metacreation lab - SFU" << c74::min::endl;
+            piece = new midi::Piece();
+            pieceCopy = new midi::Piece();
             return {};
         }
     };
@@ -194,7 +221,9 @@ public:
 private:
     atoms m_data; // should go away once all cleaned from Max example
     mutex m_mutex;
-    midi::Piece *piece;
+            
+    int nrTracksMoved{0}; // for operations related to track changes
+    midi::Piece *piece, *pieceCopy;
             
     //Creating elements to mimic MMM’s structure:
     class MMMevent {
