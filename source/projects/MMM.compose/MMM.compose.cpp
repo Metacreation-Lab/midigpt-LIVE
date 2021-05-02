@@ -46,7 +46,15 @@ public:
 
 
     c74::min::function process = MIN_FUNCTION {
+        
+        /* ///////////////////////////////////////////////////////////////
+        CONTEXTUAL OPERATIONS: Here we define operations for each mode
+        ///////////////////////////////////////////////////////////////*/
+        
         switch (operation) {
+            /* ///////////////////////////////////////////////////////////////
+            COLLECT OPERATIONS: Here we collect data from the Live set for conditioning the note genaration
+            */
             case operations::collect: {
                 
                 lock lock {m_mutex};
@@ -121,7 +129,9 @@ public:
                 lock.unlock();
                 break;
             }
-                
+            /* ///////////////////////////////////////////////////////////////
+            GENERATE OPERATIONS: Here we generate data from previous note collection
+            */
             case operations::generate: {
                 lock lock {m_mutex};
                 
@@ -150,7 +160,9 @@ public:
                 output.send();
                 break;
             }
-                
+            /* ///////////////////////////////////////////////////////////////
+            EXPAND OPERATIONS: Here we generate data based on previous sequences
+            */
             case operations::expand: {
                 lock lock {m_mutex};
                 // do stuff
@@ -163,32 +175,55 @@ public:
                 break;
         }
         
-        if (args[0]=="tracks_changed" && args.size() >= 1){
-            nrTracksMoved=0;
-            //pieceCopy->Clear();
-            cout << "Changing tracks " << nrTracksMoved << c74::min::endl;
+        
+        /*
+        ///////////////////////////////////////////////////////////////
+        GENERAL OPERATIONS: Here we define operations for all modes
+        ///////////////////////////////////////////////////////////////
+        */
+        {
+            /* ///////////////////////////////////////////////////////////////
+            TRACK OPERATIONS: mechanism to manage changes in Ableton tracks
+                              e.g. moving, ading or deleting tracks in Live
+            */
+            if (args[0]=="tracks_changed" && args.size() >= 1){
+                nrTracksMoved=0;
+                //pieceCopy->Clear();
+                cout << "Changing tracks " << nrTracksMoved << c74::min::endl;
+            }
+            else if (args[0]=="new_track" && args.size() >= 2){
+                int newTrackNr = args[1];
+                nrTracksMoved++;
+                cout << "Creating new track #" << newTrackNr << " / " <<  nrTracksMoved  << " in piece copy" << c74::min::endl;
+                //pieceCopy->add_tracks();
+            }
+            else if (args[0]=="reorder_track" && args.size() >= 3){
+                int trackNr = args[1];
+                nrTracksMoved++;
+                cout << "Moving existing track #" << trackNr << " to track #" << args[2] << " / " <<  nrTracksMoved  << " in piece copy" << c74::min::endl;
+                // move track to piece copy
+                //pieceCopy->add_tracks()->CopyFrom(piece->tracks()[trackNr]);
+            }
+            else if (args[0]=="tracks_done" && args.size() >= 2){
+                cout << "Tracks updating, swapping pieces with " << nrTracksMoved << " tracks" << c74::min::endl;
+                // piece->Clear();
+                // piece->Swap(pieceCopy);
+            }
         }
-        else if (args[0]=="new_track" && args.size() >= 2){
-            int newTrackNr = args[1];
-            nrTracksMoved++;
-            cout << "Creating new track #" << newTrackNr << " / " <<  nrTracksMoved  << " in piece copy" << c74::min::endl;
-            //pieceCopy->add_tracks();
+        {
+            /* ///////////////////////////////////////////////////////////////
+            OTHER OPERATIONS:
+            */
         }
-        else if (args[0]=="reorder_track" && args.size() >= 3){
-            int trackNr = args[1];
-            nrTracksMoved++;
-            cout << "Moving existing track #" << trackNr << " to track #" << args[2] << " / " <<  nrTracksMoved  << " in piece copy" << c74::min::endl;
-            // move track to piece copy
-            //pieceCopy->add_tracks()->CopyFrom(piece->tracks()[trackNr]);
-        }
-        else if (args[0]=="tracks_done" && args.size() >= 2){
-            cout << "Tracks updating, swapping pieces with " << nrTracksMoved << " tracks" << c74::min::endl;
-            // piece->Clear();
-            // piece->Swap(pieceCopy);
-        }
+        
+        
         return {};
     };
 
+    /*//////////////////////////////////////////////////////////////////////
+    MAX INPUT MANAGEMENT : Here we define behaviours for Max external’s input
+    //////////////////////////////////////////////////////////////////////*/
+    
     message<threadsafe::yes> list { this, "list", "Operate on the list. Either add it to the collection or calculate the mean.", process };
     
     message<threadsafe::yes> anything { this, "anything", "Add content to the collection. Only applicable if using the 'collect' operation.", process };
@@ -207,6 +242,10 @@ public:
             return {};
         }
     };
+    
+    /*////////////////////////////////////////////////////////////////////////
+    MAX INIT MANAGEMENT : Here we define behaviours at Max external’s startup
+    ////////////////////////////////////////////////////////////////////////*/
 
     // post to max window == but only when the class is loaded the first time
     message<> maxclass_setup { this, "maxclass_setup",
@@ -218,6 +257,9 @@ public:
         }
     };
 
+/*////////////////////////////////////////////////////////////////////////
+PRIVATE MEMEBERS : Here we define private members for this class
+////////////////////////////////////////////////////////////////////////*/
 private:
     atoms m_data; // should go away once all cleaned from Max example
     mutex m_mutex;
