@@ -59,19 +59,21 @@ public:
                 
                 lock lock {m_mutex};
                 
-                int nBars{0};
-                float barLength{0};
                 // midi::Bar* bar{nullptr};
                 midi::Event* event{nullptr};
                 
                 
                 
-                if (args[0]=="trackNr" && args.size() >= 2){
+                if (args[0]=="clearNotes"){
+                    piece.clear_events();
+                }
+                else if (args[0]=="trackNr" && args.size() >= 2){
                     trackNr = int(args[1]);
                     
                     if ( trackNr < piece.tracks_size() ) {
                         cout << "chosen track: " << trackNr << c74::min::endl;
                         track = &piece.tracks(trackNr);
+                        piece.mutable_tracks(trackNr)->clear_bars();
                     } else {
                         cout << "the track #" << trackNr << " doesn’t exist! - creating tracks " << piece.tracks_size() << " to "  << trackNr << c74::min::endl;
                         for (int i=piece.tracks_size(); i<=trackNr; i++){
@@ -88,12 +90,14 @@ public:
                 }
                 else if (args[0]=="nBars" && args.size() >= 2){
                     nBars = int(args[1]);
-                    if ( (track) && ( nBars < track->bars_size() )) {
-                        cout << "chosen track: " << trackNr << " has " << track->bars_size() << " - filling " << nBars << " first bars." << c74::min::endl;
-                    } else if ( (track) && ( nBars >= track->bars_size() ) ) {
+                    if ( (track) && ( nBars <= track->bars_size() )) {
+                        cout << "chosen track: " << trackNr << " has " << track->bars_size() << " bars - filling " << nBars << " first bars." << c74::min::endl;
+                    } else if ( (track) && ( nBars > track->bars_size() ) ) {
                         int nAddedBars = nBars - track->bars_size();
                         cout << "not enough bars on track #" << trackNr << " add " << nAddedBars <<  " bars" << c74::min::endl;
                         for (int i=0; i<nAddedBars; i++) piece.mutable_tracks(trackNr)->add_bars();
+                        
+                        ///TODO: set bar signature / length in "resolution"
                         
                     } else if ( !(track)) {
                         cerr << "no existing track has been chosen, please choose a track!" << c74::min::endl;
@@ -106,24 +110,38 @@ public:
                     cout << "number of stored events: " << piece.events_size() << c74::min::endl;
                 }
                 else if (args[0]=="note" && args.size() >= 5){
-                    cout << "pitch: " << args[1] << c74::min::endl;
-                    cout << "time: " << int(float(args[2])*12) << c74::min::endl;
-                    cout << "endtime: " << int( ( float(args[2])+float(args[3]) ) * 12 ) << c74::min::endl;
-                    cout << "velocity: " << args[4] << c74::min::endl;
+                    int startTime = int(float(args[2])*resolution);
+                    int endTime = int( ( float(args[2])+float(args[3]) ) * resolution );
+                    int pitch = args[1];
+                    int velocity = args[4];
+                    cout << "pitch: " << pitch << c74::min::endl;
+                    cout << "starttime: " << startTime << c74::min::endl;
+                    cout << "endtime: " << endTime << c74::min::endl;
+                    cout << "velocity: " << velocity << c74::min::endl;
                    
                     // Note On:
                     event = piece.add_events();
                     event->set_pitch(args[1]);
-                    event->set_time(int(( float(args[2])+float(args[3]))*resolution));
+                    event->set_time(startTime*resolution);
                     event->set_velocity(args[4]);
                     // put in appropriate bar
+                    int eventNr = piece.events_size()-1;
+                    int barNr = int(startTime/(barLength*resolution));
+                    cout << "adding event #" << eventNr << " to track #" << trackNr << "’s bar #"  << barNr << c74::min::endl;
+                    // HOW DO WE GET THE EVENT NUMBER
+                    //piece.mutable_tracks(trackNr)->mutable_bars(barNr)->add_events(eventNr);
                     
-                    // Note On:
+                    // Note Off:
                     event = piece.add_events();
-                    event->set_pitch(args[1]);
-                    event->set_time(int(float(args[2])*resolution));
+                    event->set_pitch(pitch);
+                    event->set_time(endTime);
                     event->set_velocity(0);
+                    eventNr++;
                     // put in appropriate bar
+                    barNr = int(endTime/(barLength*resolution));
+                    cout << "adding event #" << eventNr << " to track #" << trackNr << "’s bar #" << barNr << c74::min::endl;
+                    // HOW DO WE GET THE EVENT NUMBER
+                    //piece.mutable_tracks(trackNr)->mutable_bars(barNr)->add_events(eventNr);
                     
                 }
                 
@@ -270,6 +288,8 @@ private:
             
     const midi::Track* track{nullptr};
     int trackNr{0};
+    int nBars{0};
+    float barLength{0};
             
     int nrTracksMoved{0}; // for operations related to track changes
     
