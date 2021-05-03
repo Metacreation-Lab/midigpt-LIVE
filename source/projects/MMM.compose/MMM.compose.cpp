@@ -72,15 +72,15 @@ public:
                     
                     if ( trackNr < piece.tracks_size() ) {
                         cout << "chosen track: " << trackNr << c74::min::endl;
-                        track = &piece.tracks(trackNr);
-                        piece.mutable_tracks(trackNr)->clear_bars();
+                        track = piece.mutable_tracks(trackNr);
+                        track->clear_bars();
                     } else {
                         cout << "the track #" << trackNr << " doesn’t exist! - creating tracks " << piece.tracks_size() << " to "  << trackNr << c74::min::endl;
                         for (int i=piece.tracks_size(); i<=trackNr; i++){
                             piece.add_tracks();
                             cout << "creating track #" << i << c74::min::endl;
                         }
-                        track = &piece.tracks(trackNr);
+                        track = piece.mutable_tracks(trackNr);
                     }
                      
                 }
@@ -286,7 +286,7 @@ private:
 
     midi::Piece piece, pieceCopy;
             
-    const midi::Track* track{nullptr};
+    midi::Track* track{nullptr};
     int trackNr{0};
     int nBars{0};
     float barLength{0};
