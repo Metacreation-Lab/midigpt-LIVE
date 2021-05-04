@@ -47,7 +47,7 @@ public:
 
     c74::min::function process = MIN_FUNCTION {
         
-        /* ///////////////////////////////////////////////////////////////
+        /*///////////////////////////////////////////////////////////////
         CONTEXTUAL OPERATIONS: Here we define operations for each mode
         ///////////////////////////////////////////////////////////////*/
         
@@ -62,12 +62,7 @@ public:
                 // midi::Bar* bar{nullptr};
                 midi::Event* event{nullptr};
                 
-                
-                
-                if (args[0]=="clearNotes"){
-                    piece.clear_events();
-                }
-                else if (args[0]=="trackNr" && args.size() >= 2){
+                if (args[0]=="trackNr" && args.size() >= 2){
                     trackNr = int(args[1]);
                     
                     if ( trackNr < piece.tracks_size() ) {
@@ -95,7 +90,7 @@ public:
                     } else if ( (track) && ( nBars > track->bars_size() ) ) {
                         int nAddedBars = nBars - track->bars_size();
                         cout << "not enough bars on track #" << trackNr << " add " << nAddedBars <<  " bars" << c74::min::endl;
-                        for (int i=0; i<nAddedBars; i++) piece.mutable_tracks(trackNr)->add_bars();
+                        for (int i=0; i<nAddedBars; i++) piece.mutable_tracks(trackNr)->add_bars()->set_beat_length(barLength);
                         
                         ///TODO: set bar signature / length in "resolution"
                         
@@ -128,8 +123,7 @@ public:
                     int eventNr = piece.events_size()-1;
                     int barNr = int(startTime/(barLength*resolution));
                     cout << "adding event #" << eventNr << " to track #" << trackNr << "’s bar #"  << barNr << c74::min::endl;
-                    // HOW DO WE GET THE EVENT NUMBER
-                    //piece.mutable_tracks(trackNr)->mutable_bars(barNr)->add_events(eventNr);
+                    piece.mutable_tracks(trackNr)->mutable_bars(barNr)->add_events(eventNr);
                     
                     // Note Off:
                     event = piece.add_events();
@@ -140,8 +134,7 @@ public:
                     // put in appropriate bar
                     barNr = int(endTime/(barLength*resolution));
                     cout << "adding event #" << eventNr << " to track #" << trackNr << "’s bar #" << barNr << c74::min::endl;
-                    // HOW DO WE GET THE EVENT NUMBER
-                    //piece.mutable_tracks(trackNr)->mutable_bars(barNr)->add_events(eventNr);
+                    piece.mutable_tracks(trackNr)->mutable_bars(barNr)->add_events(eventNr);
                     
                 }
                 
@@ -163,6 +156,8 @@ public:
                         // already existing track - update part or all of bars
                         cout << "chosen track: " << trackNr << c74::min::endl;
                         track = piece.mutable_tracks(trackNr);
+                        track->clear_bars();
+                        
                     } else {
                         // unexisting track - let’s create it firs
                         cout << "Creating new track #" << trackNr  << c74::min::endl;
@@ -236,6 +231,9 @@ public:
             /* ///////////////////////////////////////////////////////////////
             OTHER OPERATIONS:
             */
+            if (args[0]=="clearNotes"){
+                piece.clear_events();
+            }
         }
         
         
