@@ -36,6 +36,7 @@ add_library(
 	${PROJECT_NAME} 
 	MODULE
 	${SOURCE_FILES}
+    MMM_API/src/mmm_api/protobuf/midi.proto
 )
 
 target_link_libraries(
