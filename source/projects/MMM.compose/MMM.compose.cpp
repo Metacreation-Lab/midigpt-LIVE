@@ -14,7 +14,7 @@
 #include "./MMM_API/src/mmm_api/protobuf/midi.pb.cc"
 #include "./MMM_API/src/mmm_api/sample_internal.h"
 
-std::string ckpt_path = "/Users/bltzr/Dropbox/My Mac (Pias-MBP)/Documents/Max 8/Packages/MMM4LIVE/source/projects/MMM.compose";
+std::string ckpt_path = "/Users/bltzr/Documents/Max 8/Packages/MMM/source/projects/MMM.compose/OPZ_MODELS/opz.pt";
 
 // This is the structure we use to define different models that are used.
 // The keys in the map are the number of bars and the model type.
@@ -62,28 +62,12 @@ public:
                 // midi::Bar* bar{nullptr};
                 midi::Event* event{nullptr};
                 
-                if (args[0]=="trackNr" && args.size() >= 2){
-                    trackNr = int(args[1]);
-                    
-                    if ( trackNr < piece.tracks_size() ) {
-                        cout << "chosen track: " << trackNr << c74::min::endl;
-                        track = piece.mutable_tracks(trackNr);
-                        track->clear_bars();
-                    } else {
-                        cout << "the track #" << trackNr << " doesn’t exist! - creating tracks " << piece.tracks_size() << " to "  << trackNr << c74::min::endl;
-                        for (int i=piece.tracks_size(); i<=trackNr; i++){
-                            piece.add_tracks();
-                            cout << "creating track #" << i << c74::min::endl;
-                        }
-                        track = piece.mutable_tracks(trackNr);
-                    }
-                     
-                }
-                else if (args[0]=="barLength" && args.size() >= 2){
+                 if (args[0]=="clearTrack" && (track)){
+                    track->clear_bars();
+                } else  if (args[0]=="barLength" && args.size() >= 2){
                     barLength = args[1];
                     cout << "Bar length: " << barLength << " quarter notes " << c74::min::endl;
-                }
-                else if (args[0]=="nBars" && args.size() >= 2){
+                } else if (args[0]=="nBars" && args.size() >= 2){
                     nBars = int(args[1]);
                     if ( (track) && ( nBars <= track->bars_size() )) {
                         cout << "chosen track: " << trackNr << " has " << track->bars_size() << " bars - filling " << nBars << " first bars." << c74::min::endl;
@@ -92,19 +76,15 @@ public:
                         cout << "not enough bars on track #" << trackNr << " add " << nAddedBars <<  " bars" << c74::min::endl;
                         for (int i=0; i<nAddedBars; i++) piece.mutable_tracks(trackNr)->add_bars()->set_beat_length(barLength);
                         
-                        ///TODO: set bar signature / length in "resolution"
-                        
                     } else if ( !(track)) {
                         cerr << "no existing track has been chosen, please choose a track!" << c74::min::endl;
                     }else {
                         cerr << "no existing track has been chosen, unknown BUG!" << c74::min::endl;
                     }
-                }
-                else if (args[0]=="notes" && args.size() >= 2){
+                } else if (args[0]=="notes" && args.size() >= 2){
                     cout << "number of notes: " << args[1] << c74::min::endl;
                     cout << "number of stored events: " << piece.events_size() << c74::min::endl;
-                }
-                else if (args[0]=="note" && args.size() >= 5){
+                } else if (args[0]=="note" && args.size() >= 5){
                     int startTime = int(float(args[2])*resolution);
                     int endTime = int( ( float(args[2])+float(args[3]) ) * resolution );
                     int pitch = args[1];
@@ -156,16 +136,13 @@ public:
                         // already existing track - update part or all of bars
                         cout << "chosen track: " << trackNr << c74::min::endl;
                         track = piece.mutable_tracks(trackNr);
-                        track->clear_bars();
-                        
                     } else {
-                        // unexisting track - let’s create it firs
+                        // unexisting track - let’s create it first
                         cout << "Creating new track #" << trackNr  << c74::min::endl;
                         track = piece.add_tracks();
                     }
-                }
-                else if (args[0]=="bars" && args.size() >= 2){
-                    cout << "Adding " << args.size()-1 << "bars to track: " << trackNr << c74::min::endl;
+                } else if (args[0]=="bars" && args.size() >= 2){
+                    cout << "Generating " << args.size()-1 << "bars in track: " << trackNr << c74::min::endl;
                 }
                 
                 lock.unlock();
@@ -174,6 +151,7 @@ public:
                 //output.send();
                 break;
             }
+                
             /* ///////////////////////////////////////////////////////////////
             EXPAND OPERATIONS: Here we generate data based on previous sequences
             */
@@ -203,28 +181,42 @@ public:
             TRACK OPERATIONS: mechanism to manage changes in Ableton tracks
                               e.g. moving, ading or deleting tracks in Live
             */
-            if (args[0]=="tracks_changed" && args.size() >= 1){
+            if (args[0]=="trackNr" && args.size() >= 2){
+                trackNr = int(args[1]);
+                
+                if ( trackNr < piece.tracks_size() ) {
+                    cout << "chosen track: " << trackNr << c74::min::endl;
+                    track = piece.mutable_tracks(trackNr);
+                } else {
+                    cout << "the track #" << trackNr << " doesn’t exist! - creating tracks " << piece.tracks_size() << " to "  << trackNr << c74::min::endl;
+                    for (int i=piece.tracks_size(); i<=trackNr; i++){
+                        piece.add_tracks();
+                        cout << "creating track #" << i << c74::min::endl;
+                    }
+                    track = piece.mutable_tracks(trackNr);
+                }
+            } else if (args[0]=="tracks_changed" && args.size() >= 1){
                 nrTracksMoved=0;
-                //pieceCopy->Clear();
+                //pieceCopy.Clear();
+                //pieceCopy.set_resolution(resolution);
+                //pieceCopy.set_tempo(tempo);
+                // copy  events and all other stuff
                 cout << "Changing tracks " << nrTracksMoved << c74::min::endl;
-            }
-            else if (args[0]=="new_track" && args.size() >= 2){
+            } else if (args[0]=="new_track" && args.size() >= 2){
                 int newTrackNr = args[1];
                 nrTracksMoved++;
                 cout << "Creating new track #" << newTrackNr << " / " <<  nrTracksMoved  << " in piece copy" << c74::min::endl;
-                //pieceCopy->add_tracks();
-            }
-            else if (args[0]=="reorder_track" && args.size() >= 3){
+                //pieceCopy.add_tracks();
+            } else if (args[0]=="reorder_track" && args.size() >= 3){
                 int trackNr = args[1];
                 nrTracksMoved++;
                 cout << "Moving existing track #" << trackNr << " to track #" << args[2] << " / " <<  nrTracksMoved  << " in piece copy" << c74::min::endl;
                 // move track to piece copy
-                //pieceCopy->add_tracks()->CopyFrom(piece->tracks()[trackNr]);
-            }
-            else if (args[0]=="tracks_done" && args.size() >= 2){
+                //pieceCopy.add_tracks()->CopyFrom(piece.tracks()[trackNr]);
+            } else if (args[0]=="tracks_done" && args.size() >= 2){
                 cout << "Tracks updating, swapping pieces with " << nrTracksMoved << " tracks" << c74::min::endl;
-                // piece->Clear();
-                // piece->Swap(pieceCopy);
+                //piece.Clear();
+                //piece.Swap(&pieceCopy);
             }
         }
         {
@@ -233,6 +225,31 @@ public:
             */
             if (args[0]=="clearNotes"){
                 piece.clear_events();
+            } else if (args[0]=="clearStatus"){
+                status.Clear();
+            } else if (args[0]=="tempo" && args.size() >= 2){
+                tempo = args[1];
+                piece.set_tempo(tempo);
+            } else if (args[0]=="get_instruments"){
+                output.send( "get_instruments_start" );
+                for (const auto& [key, value] : GM) {
+                    output.send( "get_instruments", key );
+                }
+                output.send( "get_instruments_done" );
+            } else if (args[0]=="tracks_per_step" && args.size() >= 2){
+                param.set_tracks_per_step(args[1]);
+            }else if (args[0]=="bars_per_step" && args.size() >= 2){
+                param.set_bars_per_step(args[1]);
+            } else if (args[0]=="model_dim" && args.size() >= 2){
+                param.set_model_dim(args[1]);
+            } else if (args[0]=="shuffle" && args.size() >= 2){
+                param.set_shuffle(args[1]);
+            } else if (args[0]=="percentage" && args.size() >= 2){
+                param.set_percentage(args[1]);
+            } else if (args[0]=="temperature" && args.size() >= 2){
+                param.set_temperature(args[1]);
+            } else if (args[0]=="batch_size" && args.size() >= 2){
+                param.set_batch_size(args[1]);
             }
         }
         
@@ -271,6 +288,18 @@ public:
     message<> maxclass_setup { this, "maxclass_setup",
         MIN_FUNCTION {
             cout << "MMM compose object by Metacreation lab - SFU" << c74::min::endl;
+            piece.set_resolution(resolution);
+            piece.set_tempo(tempo);
+            param.set_tracks_per_step(1);
+            param.set_bars_per_step(2);
+            param.set_model_dim(4);
+            param.set_shuffle(false);
+            param.set_percentage(100);
+            param.set_temperature(1.);
+            param.set_batch_size(1);
+            param.set_verbose(true);
+            param.set_encoder("TRACK_NOTE_DURATION_CONT_ENCODER");
+            param.set_ckpt(ckpt_path);
             return {};
         }
     };
@@ -283,6 +312,11 @@ private:
     mutex m_mutex;
 
     midi::Piece piece, pieceCopy;
+    midi::Status status;
+    midi::SampleParam param;
+            
+    int32_t resolution{12};
+    int32_t tempo{120};
             
     midi::Track* track{nullptr};
     int trackNr{0};
@@ -290,8 +324,7 @@ private:
     float barLength{0};
             
     int nrTracksMoved{0}; // for operations related to track changes
-    
-    int32_t resolution{12};
+
     
     // We need a scene struct for interaction with Live:
     struct LiveScene{
