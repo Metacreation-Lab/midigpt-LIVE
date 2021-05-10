@@ -30,23 +30,18 @@
 	<methodlist>
 
 		<method name='bang'>
-			<digest>Send out the collected list</digest>
-			<description>Send out the collected list. Only applicable if using the 'collect' operation. </description>
-		</method>
-
-		<method name='float'>
-			<digest>Add content to the collection</digest>
-			<description>Add content to the collection. Only applicable if using the 'collect' operation. </description>
+			<digest>Trigger the generation</digest>
+			<description>Trigger the generation. </description>
 		</method>
 
 		<method name='anything'>
-			<digest>Add content to the collection</digest>
-			<description>Add content to the collection. Only applicable if using the 'collect' operation. </description>
+			<digest>Messages to MMM compose</digest>
+			<description>Messages to MMM compose. </description>
 		</method>
 
-		<method name='list'>
-			<digest>Operate on the list</digest>
-			<description>Operate on the list. Either add it to the collection or calculate the mean. </description>
+		<method name='Messages to MMM compose.'>
+			<digest></digest>
+			<description></description>
 		</method>
 
 	</methodlist>
@@ -55,11 +50,6 @@
 	<!--ATTRIBUTES-->
 
 	<attributelist>
-
-		<attribute name='operation' get='1' set='1' type='long' size='1' >
-			<digest>Choose the operation to perform with the input: collect, generate or expand </digest>
-			<description>Choose the operation to perform with the input: collect, generate or expand </description>
-		</attribute>
 
 	</attributelist>
 
