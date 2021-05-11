@@ -12,7 +12,7 @@
 #include "./MMM_API/src/mmm_api/midi_io.h" // only needed for MIDI input/output
 #include "./MMM_API/src/mmm_api/protobuf/midi.pb.h"
 #include "./MMM_API/src/mmm_api/protobuf/midi.pb.cc"
-#include "./MMM_API/src/mmm_api/sample_internal.h"
+#include "./MMM_API/src/mmm_api/multi_step_sample.h"
 
 std::string ckpt_path = "/Users/bltzr/Documents/Max 8/Packages/MMM/source/projects/MMM.compose/OPZ_MODELS/opz.pt";
 
@@ -184,29 +184,37 @@ public:
 
         else if (args[0]=="tracks_changed" && args.size() >= 1){
             nrTracksMoved=0;
-            //pieceCopy.Clear();
-            //pieceCopy.set_resolution(resolution);
-            //pieceCopy.set_tempo(tempo);
-            // copy  events and all other stuff
-            
-            ///TODO: add same things for status
-            
+            pieceCopy.Clear();
+            pieceCopy.set_resolution(resolution);
+            pieceCopy.set_tempo(tempo);
+            for (auto e : *piece.mutable_events() ) {
+                midi::Event* event{};
+                event = pieceCopy.add_events();
+                event->Swap(&e);
+            }
+            statusCopy.Clear();
             cout << "Changing tracks " << nrTracksMoved << c74::min::endl;
         } else if (args[0]=="new_track" && args.size() >= 2){
             int newTrackNr = args[1];
             nrTracksMoved++;
             cout << "Creating new track #" << newTrackNr << " / " <<  nrTracksMoved  << " in piece copy" << c74::min::endl;
-            //pieceCopy.add_tracks();
+            track = pieceCopy.add_tracks();
+            strack = statusCopy.add_tracks();
         } else if (args[0]=="reorder_track" && args.size() >= 3){
             int trackNr = args[1];
             nrTracksMoved++;
             cout << "Moving existing track #" << trackNr << " to track #" << args[2] << " / " <<  nrTracksMoved  << " in piece copy" << c74::min::endl;
             // move track to piece copy
-            //pieceCopy.add_tracks()->CopyFrom(piece.tracks()[trackNr]);
+            track = pieceCopy.add_tracks();
+            track->Swap(piece.mutable_tracks(trackNr));
+            strack = statusCopy.add_tracks();
+            strack->Swap(status.mutable_tracks(trackNr));
         } else if (args[0]=="tracks_done" && args.size() >= 2){
             cout << "Tracks updating, swapping pieces with " << nrTracksMoved << " tracks" << c74::min::endl;
-            //piece.Clear();
-            //piece.Swap(&pieceCopy);
+            piece.Clear();
+            piece.Swap(&pieceCopy);
+            status.Clear();
+            status.Swap(&statusCopy);
         }
        
         /* ///////////////////////////////////////////////////////////////
@@ -266,7 +274,14 @@ public:
             lock  lock {m_mutex};
             
             // do stuff
-            
+            piece.set_resolution(resolution);
+            cout << "Generating piece " << c74::min::endl;
+            MMMsample(&piece, &status, &param);
+            std::string json_string;
+            google::protobuf::util::JsonPrintOptions opt;
+            opt.add_whitespace = true;
+            google::protobuf::util::MessageToJsonString(piece, &json_string, opt);
+            output("generated_piece", json_string );
             lock.unlock();
 
             //output.send( stuff );
