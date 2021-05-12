@@ -14,15 +14,7 @@
 #include "./MMM_API/src/mmm_api/protobuf/midi.pb.cc"
 #include "./MMM_API/src/mmm_api/multi_step_sample.h"
 
-std::string ckpt_path = "/Users/bltzr/Documents/Max 8/Packages/MMM/source/projects/MMM.compose/OPZ_MODELS/opz.pt";
-
-// This is the structure we use to define different models that are used.
-// The keys in the map are the number of bars and the model type.
-// The values in the map are the encoding class and the ckpt path.
-std::map<std::tuple<int,MODEL_TYPE>,std::tuple<ENCODER_TYPE,std::string>> ckpt_map = {
-    {{4,TRACK_MODEL},{TE_TRACK_DENSITY_ENCODER,ckpt_path}},
-    {{4,BAR_INFILL_MODEL},{TE_TRACK_DENSITY_ENCODER,ckpt_path}}
-};
+std::string ckpt_path = "paper_bar_4.pt";
 
 using namespace c74::min;
 using namespace c74::min::lib;
@@ -44,7 +36,7 @@ public:
         COLLECT OPERATIONS: Here we collect data from the Live set for conditioning the note genaration
         /////////////////////////////////////////////////////////////// */
             
-        lock lock {m_mutex};
+        c74::min::lock lock {m_mutex};
     
         /* ///////////////////////////////////////////////////////////////
         TRACKS:
