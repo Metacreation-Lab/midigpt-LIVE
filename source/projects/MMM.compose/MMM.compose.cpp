@@ -26,8 +26,9 @@ public:
     MIN_AUTHOR		{"MetacretionLab - SFU"};
     MIN_RELATED		{"MMM.compose"};
 
-    inlet<>  input	{ this, "(anything) input"  };
-    outlet<> output	{ this, "(list) result" };
+    inlet<>  input	        { this, "(anything) input"  };
+    outlet<> output         { this, "(dict) generated piece" };
+    outlet<> dump_output	{ this, "(list) retrieved parameters" };
 
     c74::min::function process = MIN_FUNCTION {
         
@@ -48,15 +49,16 @@ public:
            trackNr = int(args[1]);
            
            if ( trackNr < piece.tracks_size() ) {
-               cout << "chosen track: " << trackNr << c74::min::endl;
+               if (verbose) cout <<    "______________________________________________" << c74::min::endl;
+               if (verbose) cout <<  "_______________________CHOSEN TRACK: " << trackNr << c74::min::endl;
                track = piece.mutable_tracks(trackNr);
                strack = status.mutable_tracks(trackNr);
            } else {
-               cout << "the track #" << trackNr << " doesn’t exist! - creating tracks " << piece.tracks_size() << " to "  << trackNr << c74::min::endl;
+               if (verbose) cout << "the track #" << trackNr << " doesn’t exist! - creating tracks " << piece.tracks_size() << " to "  << trackNr << c74::min::endl;
                for (int i=piece.tracks_size(); i<=trackNr; i++){
                    piece.add_tracks();
                    status.add_tracks();
-                   cout << "creating track #" << i << c74::min::endl;
+                   if (verbose) cout << "creating track #" << i << c74::min::endl;
                }
                track = piece.mutable_tracks(trackNr);
                strack = status.mutable_tracks(trackNr);
@@ -68,14 +70,18 @@ public:
         */
         else  if (args[0]=="barLength" && args.size() >= 2){
             barLength = args[1];
-            cout << "Bar length: " << barLength << " quarter notes " << c74::min::endl;
+            if (verbose) cout << "Bar length: " << barLength << " quarter notes " << c74::min::endl;
         } else if (args[0]=="nBars" && args.size() >= 2){
             nBars = int(args[1]);
-            if ( (track) && ( nBars <= track->bars_size() )) {
-                cout << "chosen track: " << trackNr << " has " << track->bars_size() << " bars - filling " << nBars << " first bars." << c74::min::endl;
+            if ( (track) && ( nBars == track->bars_size() )) {
+                if (verbose) cout << "chosen track: " << trackNr << " has " << track->bars_size() << " bars - filling " << nBars << " first bars." << c74::min::endl;
+            } else if ( (track) && ( nBars < track->bars_size() )) {
+                if (verbose) cout << "chosen track: " << trackNr << " has " << track->bars_size() << " bars - filling " << nBars << " first bars." << c74::min::endl;
+                piece.mutable_tracks(trackNr)->clear_bars();
+                for (int i=0; i<nBars; i++) piece.mutable_tracks(trackNr)->add_bars()->set_beat_length(barLength);
             } else if ( (track) && ( nBars > track->bars_size() ) ) {
                 int nAddedBars = nBars - track->bars_size();
-                cout << "not enough bars on track #" << trackNr << " add " << nAddedBars <<  " bars" << c74::min::endl;
+                if (verbose) cout << "not enough bars on track #" << trackNr << " add " << nAddedBars <<  " bars" << c74::min::endl;
                 for (int i=0; i<nAddedBars; i++) piece.mutable_tracks(trackNr)->add_bars()->set_beat_length(barLength);
             }
             else if ( !(track)) {
@@ -93,8 +99,10 @@ public:
             piece.set_resolution(resolution);
         }
         else  if (args[0]=="notes" && args.size() >= 2){
-            cout << "number of notes: " << args[1] << c74::min::endl;
-            cout << "number of stored events: " << piece.events_size() << c74::min::endl;
+            if (verbose) cout << "number of notes: " << args[1] << c74::min::endl;
+            ///TODO: see how to de this properly ? (looking at status strack ?)
+             autoignore = !(bool(args[1]));
+            if (autoignore) if (verbose) cout << "ignoring track #" << trackNr << c74::min::endl;
         }
         else if (args[0]=="note" && args.size() >= 5){
             midi::Event* event{nullptr};
@@ -102,31 +110,33 @@ public:
             int endTime = int((float(args[2])+float(args[3]))*resolution);
             int pitch = args[1];
             int velocity = args[4];
-            cout << "pitch: " << pitch << c74::min::endl;
-            cout << "starttime: " << startTime << c74::min::endl;
-            cout << "endtime: " << endTime << c74::min::endl;
-            cout << "velocity: " << velocity << c74::min::endl;
+            if (verbose) cout << "pitch: " << pitch << c74::min::endl;
+            if (verbose) cout << "starttime: " << startTime << c74::min::endl;
+            if (verbose) cout << "endtime: " << endTime << c74::min::endl;
+            if (verbose) cout << "velocity: " << velocity << c74::min::endl;
            
             // Note On:
+            int barNr = int(startTime/(barLength*resolution));
+            startTime = startTime-barNr*barLength*resolution;
             event = piece.add_events();
             event->set_pitch(pitch);
             event->set_time(startTime);
             event->set_velocity(velocity);
             // put in appropriate bar
             int eventNr = piece.events_size()-1;
-            int barNr = int(startTime/(barLength*resolution));
-            cout << "adding event #" << eventNr << " to track #" << trackNr << "’s bar #"  << barNr << c74::min::endl;
+            if (verbose) cout << "adding event #" << eventNr << " to track #" << trackNr << "’s bar #"  << barNr  << " at time "  << startTime <<  c74::min::endl;
             piece.mutable_tracks(trackNr)->mutable_bars(barNr)->add_events(eventNr);
             
             // Note Off:
+            barNr = int(endTime/(barLength*resolution));
+            endTime = endTime-barNr*barLength*resolution;
             event = piece.add_events();
             event->set_pitch(pitch);
             event->set_time(endTime);
             event->set_velocity(0);
             eventNr++;
             // put in appropriate bar
-            barNr = int(endTime/(barLength*resolution));
-            cout << "adding event #" << eventNr << " to track #" << trackNr << "’s bar #" << barNr << c74::min::endl;
+            if (verbose) cout << "adding event #" << eventNr << " to track #" << trackNr << "’s bar #" << barNr << " at time "  << endTime << c74::min::endl;
             piece.mutable_tracks(trackNr)->mutable_bars(barNr)->add_events(eventNr);
             
         }
@@ -137,10 +147,11 @@ public:
         
         else if (args[0]=="bars" && args.size() >= 2){
             strack->clear_selected_bars();
-            cout << "Generating " << args.size()-1 << " bars in track: " << trackNr << c74::min::endl;
+            if (verbose) cout << "Generating " << args.size()-1 << " bars in track: " << trackNr << c74::min::endl;
             for (int i=1; i<args.size();i++) {
                 strack->add_selected_bars(bool(args[i]));
-                cout << "Adding " << bool(args[i]) << " for bar " << i << c74::min::endl;
+                //if (bool(args[i])) autoignore=false;
+                if (verbose) cout << "Adding " << bool(args[i]) << " for bar " << i << c74::min::endl;
             }
         }
         else if (args[0]=="track_type" && args.size() >= 1){
@@ -148,14 +159,20 @@ public:
             strack->set_track_type(int(args[1])+10);
             track->set_type(int(args[1])+10);
             track->set_is_drum(bool(args[1]));
-            cout << "Setting track " << trackNr << "’s id + type: " << args[1] << c74::min::endl;
+            if (verbose) cout << "Setting track " << trackNr << "’s id + type: " << args[1] << c74::min::endl;
         } else if (args[0]=="instrument" && args.size() >= 3){
             strack->set_instrument(args[2]);
             track->set_instrument(args[1]);
-            cout << "Setting track " << trackNr << "’s instrument: " << args[1] << " / " << args[2]  << c74::min::endl;
+            if (verbose) cout << "Setting track " << trackNr << "’s instrument: " << args[1] << " / " << args[2]  << c74::min::endl;
         } else if (args[0]=="density" && args.size() >= 1){
             strack->set_density(args[1]);
-            cout << "Setting track " << trackNr << "’s density: " << args[1] << c74::min::endl;
+            if (verbose) cout << "Setting track " << trackNr << "’s density: " << args[1] << c74::min::endl;
+        } else if (args[0]=="resample" && args.size() >= 1){
+            strack->set_resample(bool(args[1]));
+            if (verbose) cout << "Setting track " << trackNr << "’s resample: " << args[1] << c74::min::endl;
+        } else if (args[0]=="ignore" && args.size() >= 1){
+            strack->set_ignore(bool(args[1]));//||autoignore);
+            if (verbose) cout << "Setting track " << trackNr << "’s resample: " << args[1] << c74::min::endl;
         }
         
         else if (args[0]=="get_status"){
@@ -163,7 +180,7 @@ public:
             google::protobuf::util::JsonPrintOptions opt;
             opt.add_whitespace = true;
             google::protobuf::util::MessageToJsonString(status, &json_string, opt);
-            output("get_status", json_string );
+            dump_output("get_status", json_string );
             
         }
             
@@ -185,24 +202,24 @@ public:
                 event->Swap(&e);
             }
             statusCopy.Clear();
-            cout << "Changing tracks " << nrTracksMoved << c74::min::endl;
+            if (verbose) cout << "Changing tracks " << nrTracksMoved << c74::min::endl;
         } else if (args[0]=="new_track" && args.size() >= 2){
             int newTrackNr = args[1];
             nrTracksMoved++;
-            cout << "Creating new track #" << newTrackNr << " / " <<  nrTracksMoved  << " in piece copy" << c74::min::endl;
+            if (verbose) cout << "Creating new track #" << newTrackNr << " / " <<  nrTracksMoved  << " in piece copy" << c74::min::endl;
             track = pieceCopy.add_tracks();
             strack = statusCopy.add_tracks();
         } else if (args[0]=="reorder_track" && args.size() >= 3){
             int trackNr = args[1];
             nrTracksMoved++;
-            cout << "Moving existing track #" << trackNr << " to track #" << args[2] << " / " <<  nrTracksMoved  << " in piece copy" << c74::min::endl;
+            if (verbose) cout << "Moving existing track #" << trackNr << " to track #" << args[2] << " / " <<  nrTracksMoved  << " in piece copy" << c74::min::endl;
             // move track to piece copy
             track = pieceCopy.add_tracks();
             track->Swap(piece.mutable_tracks(trackNr));
             strack = statusCopy.add_tracks();
             strack->Swap(status.mutable_tracks(trackNr));
         } else if (args[0]=="tracks_done" && args.size() >= 2){
-            cout << "Tracks updating, swapping pieces with " << nrTracksMoved << " tracks" << c74::min::endl;
+            if (verbose) cout << "Tracks updating, swapping pieces with " << nrTracksMoved << " tracks" << c74::min::endl;
             piece.Clear();
             piece.Swap(&pieceCopy);
             status.Clear();
@@ -221,7 +238,9 @@ public:
             google::protobuf::util::JsonPrintOptions opt;
             opt.add_whitespace = true;
             google::protobuf::util::MessageToJsonString(piece, &json_string, opt);
-            output("get_piece", json_string );
+            dump_output("get_piece", json_string );
+        } else if (args[0]=="debug" && args.size() >= 2){
+            verbose = bool(args[1]);
         }
         
         /* ///////////////////////////////////////////////////////////////
@@ -229,11 +248,11 @@ public:
         /////////////////////////////////////////////////////////////// */
         
         else if (args[0]=="get_instruments"){
-            output.send( "get_instruments_start" );
+            dump_output.send( "get_instruments_start" );
             for (int i=0; i<GM_REV.size();i++) {
-                output.send( "get_instruments", GM_REV[i] );
+                dump_output.send( "get_instruments", GM_REV[i] );
             }
-            output.send( "get_instruments_done" );
+            dump_output.send( "get_instruments_done" );
         } else if (args[0]=="tracks_per_step" && args.size() >= 2){
             param.set_tracks_per_step(args[1]);
         }else if (args[0]=="bars_per_step" && args.size() >= 2){
@@ -267,13 +286,13 @@ public:
             
             // do stuff
             piece.set_resolution(resolution);
-            cout << "Generating piece " << c74::min::endl;
+            if (verbose) cout << "Generating piece " << c74::min::endl;
             MMMsample(&piece, &status, &param);
             std::string json_string;
             google::protobuf::util::JsonPrintOptions opt;
             opt.add_whitespace = true;
             google::protobuf::util::MessageToJsonString(piece, &json_string, opt);
-            output("generated_piece", json_string );
+            output(json_string);
             lock.unlock();
 
             //output.send( stuff );
@@ -300,7 +319,7 @@ public:
             param.set_temperature(1.);
             param.set_batch_size(1);
             param.set_verbose(true);
-            param.set_encoder("TRACK_NOTE_DURATION_CONT_ENCODER");
+            param.set_encoder("TRACK_BAR_FILL_DENSITY_ENCODER");
             param.set_ckpt(ckpt_path);
             return {};
         }
@@ -325,9 +344,10 @@ private:
     int trackNr{0};
     int nBars{0};
     float barLength{0};
-    std::vector<bool> barSet{};
             
+    bool autoignore{false};
     int nrTracksMoved{0}; // for operations related to track changes
+    bool verbose{false};
 
     /*
     // We need a scene struct for interaction with Live:
