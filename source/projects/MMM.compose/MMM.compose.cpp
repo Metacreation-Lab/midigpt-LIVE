@@ -249,13 +249,13 @@ public:
         
         else if (args[0]=="get_instruments"){
             dump_output.send( "get_instruments_start" );
-            for (int i=0; i<GM_REV.size();i++) {
+            for (int i=0; i<128;i++) {
                 dump_output.send( "get_instruments", GM_REV[i] );
             }
             dump_output.send( "get_instruments_done" );
         } else if (args[0]=="tracks_per_step" && args.size() >= 2){
             param.set_tracks_per_step(args[1]);
-        }else if (args[0]=="bars_per_step" && args.size() >= 2){
+        } else if (args[0]=="bars_per_step" && args.size() >= 2){
             param.set_bars_per_step(args[1]);
         } else if (args[0]=="model_dim" && args.size() >= 2){
             param.set_model_dim(args[1]);
@@ -287,7 +287,13 @@ public:
             // do stuff
             piece.set_resolution(resolution);
             if (verbose) cout << "Generating piece " << c74::min::endl;
-            MMMsample(&piece, &status, &param);
+            try {
+                MMMsample(&piece, &status, &param);
+            }
+            catch(const std::runtime_error& re)
+            {
+                cerr << "Runtime error: " << re.what() << c74::min::endl;
+            }
             std::string json_string;
             google::protobuf::util::JsonPrintOptions opt;
             opt.add_whitespace = true;
