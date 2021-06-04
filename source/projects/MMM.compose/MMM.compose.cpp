@@ -12,9 +12,10 @@
 #include "./MMM_API/src/mmm_api/midi_io.h" // only needed for MIDI input/output
 #include "./MMM_API/src/mmm_api/protobuf/midi.pb.h"
 #include "./MMM_API/src/mmm_api/protobuf/midi.pb.cc"
-#include "./MMM_API/src/mmm_api/multi_step_sample.h"
+#include "./MMM_API/src/mmm_api/sampling/multi_step_sample.h"
 
-std::string ckpt_path = "paper_bar_4.pt";
+//std::string ckpt_path = "paper_bar_4.pt";
+std::string ckpt_path = "/Users/bltzr/Documents/Max 8/Packages/MMM/source/projects/MMM.compose/MODELS/paper_bar_4.pt";
 
 using namespace c74::min;
 using namespace c74::min::lib;
@@ -27,7 +28,8 @@ public:
     MIN_RELATED		{"MMM.compose"};
 
     inlet<>  input	        { this, "(anything) input"  };
-    outlet<> output         { this, "(dict) generated piece" };
+    outlet<> output         { this, "(messages) generated piece" };
+    outlet<> error_output    { this, "(list) runtime error messages" };
     outlet<> dump_output	{ this, "(list) retrieved parameters" };
 
     c74::min::function process = MIN_FUNCTION {
@@ -183,6 +185,14 @@ public:
             dump_output("get_status", json_string );
             
         }
+        else if (args[0]=="get_sample"){
+            std::string json_string;
+            google::protobuf::util::JsonPrintOptions opt;
+            opt.add_whitespace = true;
+            google::protobuf::util::MessageToJsonString(param, &json_string, opt);
+            dump_output("get_sample", json_string );
+            
+        }
             
         
 
@@ -254,19 +264,19 @@ public:
             }
             dump_output.send( "get_instruments_done" );
         } else if (args[0]=="tracks_per_step" && args.size() >= 2){
-            param.set_tracks_per_step(args[1]);
+            tracks_per_step = args[1];
         } else if (args[0]=="bars_per_step" && args.size() >= 2){
-            param.set_bars_per_step(args[1]);
+            bars_per_step = args[1];
         } else if (args[0]=="model_dim" && args.size() >= 2){
-            param.set_model_dim(args[1]);
+            model_dim = args[1];
         } else if (args[0]=="shuffle" && args.size() >= 2){
-            param.set_shuffle(args[1]);
+            shuffle = args[1];
         } else if (args[0]=="percentage" && args.size() >= 2){
-            param.set_percentage(args[1]);
+            percentage = args[1];
         } else if (args[0]=="temperature" && args.size() >= 2){
-            param.set_temperature(args[1]);
+            temperature = args[1];
         } else if (args[0]=="batch_size" && args.size() >= 2){
-            param.set_batch_size(args[1]);
+            batch_size = args[1];
         }
 
         return {};
@@ -281,29 +291,81 @@ public:
     message<threadsafe::yes> anything { this, "anything", "Messages to MMM compose.", process };
 
     message<threadsafe::yes> bang { this, "bang", "Trigger the generation.",
-        MIN_FUNCTION {
-            lock  lock {m_mutex};
-            
-            // do stuff
-            piece.set_resolution(resolution);
-            if (verbose) cout << "Generating piece " << c74::min::endl;
-            try {
-                MMMsample(&piece, &status, &param);
+    MIN_FUNCTION {
+        lock  lock {m_mutex};
+        
+        // set parameters:
+        piece.set_resolution(resolution);
+        piece.set_tempo(tempo);
+        param.set_tracks_per_step(tracks_per_step);
+        param.set_bars_per_step(bars_per_step);
+        param.set_model_dim(model_dim);
+        param.set_shuffle(shuffle);
+        param.set_percentage(percentage);
+        param.set_temperature(temperature);
+        param.set_batch_size(batch_size);
+        param.set_polyphony_hard_limit(polyphony_hard_limit);
+        param.set_verbose(true);
+        param.set_encoder("TRACK_BAR_FILL_DENSITY_ENCODER");
+        param.set_ckpt(ckpt_path);
+        
+        // generate piece
+        try {
+            //if (verbose)
+                cout << "Generating piece " << c74::min::endl;
+            MMMsample(&piece, &status, &param);
+        }
+        catch(const std::runtime_error& re) {
+            cerr << "Runtime error: " << re.what() << c74::min::endl;
+            error_output(re.what());
+        }
+        
+        // format for Max
+        int track_num = 0;
+        for (const auto track : piece.tracks()) {
+            output("track", track_num);
+            int bar_start_time{0};
+            int note_num{0};
+            int pitch{0};
+            int vel{0};
+            float time{0};
+            float dur{0};
+            std::map<int, std::pair<float, int>> pool;
+            for (const auto bar : track.bars()) {
+                for (const auto event_index : bar.events()) {
+                    const midi::Event e = piece.events(event_index);
+                    pitch = e.pitch();
+                    time = float(bar_start_time + e.time()) / piece.resolution();
+                    vel = e.velocity();
+                    if (e.velocity() != 0) {
+                        pool[pitch] = {time, vel};
+                    } else {
+                        time = std::get<0>(pool[pitch]) ;
+                        vel  = std::get<1>(pool[pitch]);
+                        dur = float(bar_start_time + e.time()) / piece.resolution() - time;
+                        output("note", note_num, pitch, time , dur, vel);
+                        note_num++;
+                    }
+                }
+                bar_start_time += bar.beat_length() * piece.resolution();
             }
-            catch(const std::runtime_error& re)
-            {
-                cerr << "Runtime error: " << re.what() << c74::min::endl;
-            }
-            std::string json_string;
-            google::protobuf::util::JsonPrintOptions opt;
-            opt.add_whitespace = true;
-            google::protobuf::util::MessageToJsonString(piece, &json_string, opt);
-            output(json_string);
-            lock.unlock();
+            output("notes", note_num);
+            track_num++;
+        }
+         
+        //output(Gpiece);
+            /*
+        std::string json_string;
+        google::protobuf::util::JsonPrintOptions opt;
+        opt.add_whitespace = true;
+        google::protobuf::util::MessageToJsonString(piece, &json_string, opt);
+        output(json_string);
+        lock.unlock();
+             */
 
-            //output.send( stuff );
-            
-            return {};
+        //output.send( stuff );
+        
+        return {};
         }
     };
     
@@ -324,7 +386,8 @@ public:
             param.set_percentage(100);
             param.set_temperature(1.);
             param.set_batch_size(1);
-            param.set_verbose(true);
+            param.set_polyphony_hard_limit(5);
+            param.set_verbose(false);
             param.set_encoder("TRACK_BAR_FILL_DENSITY_ENCODER");
             param.set_ckpt(ckpt_path);
             return {};
@@ -340,11 +403,20 @@ private:
 
     midi::Piece  piece,  pieceCopy;
     midi::Status status, statusCopy;
-    midi::SampleParam    param;
+    midi::SampleParam    param{};
+
             
     int32_t resolution{12};
     int32_t tempo{120};
-            
+    int32_t tracks_per_step{1};
+    int32_t bars_per_step{2};
+    int32_t model_dim{4};
+    int32_t shuffle{false};
+    int32_t percentage{100};
+    float temperature{1.};
+    int32_t batch_size{1};
+    int32_t polyphony_hard_limit{5};
+                
     midi::Track* track{nullptr};
     midi::StatusTrack* strack{nullptr};
     int trackNr{0};
