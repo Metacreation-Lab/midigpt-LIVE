@@ -311,8 +311,7 @@ public:
         
         // generate piece
         try {
-            //if (verbose)
-                cout << "Generating piece " << c74::min::endl;
+            //if (verbose) cout << "Generating piece " << c74::min::endl;
             MMMsample(&piece, &status, &param);
         }
         catch(const std::runtime_error& re) {
