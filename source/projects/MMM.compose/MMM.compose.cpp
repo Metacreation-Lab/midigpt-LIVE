@@ -23,7 +23,7 @@ using namespace c74::min::lib;
 class MMM_compose : public object<MMM_compose> {
 public:
     MIN_DESCRIPTION	{"Generate MIDI notes with machine-learning"};
-    MIN_TAGS		{"composition"};
+    MIN_TAGS		{"composition, machine-learning"};
     MIN_AUTHOR		{"MetacretionLab - SFU"};
     MIN_RELATED		{"MMM.compose"};
 
@@ -260,7 +260,7 @@ public:
         else if (args[0]=="get_instruments"){
             dump_output.send( "get_instruments_start" );
             for (int i=0; i<128;i++) {
-                dump_output.send( "get_instruments", GM_REV[i] );
+                dump_output.send( "get_instruments", mmm::GM_REV[i] );
             }
             dump_output.send( "get_instruments_done" );
         } else if (args[0]=="tracks_per_step" && args.size() >= 2){
@@ -315,7 +315,7 @@ public:
         // generate piece
         try {
             if (verbose) cout << "Generating piece " << c74::min::endl;
-            MMMsample(&piece, &status, &param);
+            mmm::sample(&piece, &status, &param);
         }
         catch(const std::runtime_error& re) {
             cerr << "Runtime error: " << re.what() << c74::min::endl;
