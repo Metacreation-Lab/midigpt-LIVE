@@ -14,8 +14,8 @@
 #include "./MMM_API/src/mmm_api/protobuf/midi.pb.cc"
 #include "./MMM_API/src/mmm_api/sampling/multi_step_sample.h"
 
-//std::string ckpt_path = "paper_bar_4.pt";
-std::string ckpt_path = "/Users/bltzr/Documents/Max 8/Packages/MMM/source/projects/MMM.compose/MODELS/paper_bar_4.pt";
+std::string ckpt_path = "paper_bar_4.pt";
+//std::string ckpt_path = "/Users/bltzr/Documents/Max 8/Packages/MMM/source/projects/MMM.compose/MODELS/paper_bar_4.pt";
 
 using namespace c74::min;
 using namespace c74::min::lib;
@@ -277,6 +277,9 @@ public:
             temperature = args[1];
         } else if (args[0]=="batch_size" && args.size() >= 2){
             batch_size = args[1];
+        } else if (args[0]=="model_path" && args.size() >= 2){
+            ckpt_path = std::string(args[1]);
+            if (verbose) cout << "Chosen model path: " << ckpt_path << c74::min::endl;
         }
 
         return {};
@@ -311,7 +314,7 @@ public:
         
         // generate piece
         try {
-            //if (verbose) cout << "Generating piece " << c74::min::endl;
+            if (verbose) cout << "Generating piece " << c74::min::endl;
             MMMsample(&piece, &status, &param);
         }
         catch(const std::runtime_error& re) {
