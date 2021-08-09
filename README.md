@@ -9,7 +9,7 @@ Select scenes / tracks / clips and push GENERATE
 # Building MMM4Live
 
 Run the install.sh script, this should set everything up.
-Choose the (MMM.compose > My Mac scheme) 
+Choose the (MMM.compose > My Mac) scheme (next to the play button on the top left of the window)
 Then Build (press the play button)
 
 NB: MMM needs a .pt model to run, that must be placed in the "models" folder at the root of the repo (see release) 
@@ -24,7 +24,8 @@ All dependencies of min-devkit are added as submodules to this repository.
 ## setup instructions - for the record 
 
 This should all be managed by the install.sh script
-Type the following commands in the Terminal:
+
+For the record, this was done manually by typing the following commands in the Terminal:
 
 - `git clone git@github.com:jeffreyjohnens/MMM4LIVE.git`
 - `cd MMM4LIVE`
