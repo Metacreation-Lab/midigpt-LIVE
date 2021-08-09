@@ -3,3 +3,14 @@
 /tests
 /source/projects/MMM.compose/MMM.compose.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
 /source/projects/MMM.compose/MMM.compose.xcodeproj/xcuserdata
+/.DS_Store
+/models
+/source/projects/MMM.compose/.DS_Store
+/source/projects/MMM.compose/cmake_install.cmake
+/source/projects/MMM.compose/CMakeCache.txt
+/source/projects/MMM.compose/CMakeFiles
+/source/projects/MMM.compose/CMakeScripts
+/source/projects/MMM.compose/copyLibs2External.sh
+/source/projects/MMM.compose/MMM.compose.build
+/source/projects/MMM.compose/MMM.compose.xcodeproj/project.pbxproj
+/source/projects/MMM.compose/MMM.compose.xcodeproj/project.xcworkspace/xcuserdata/bltzr.xcuserdatad/UserInterfaceState.xcuserstate
