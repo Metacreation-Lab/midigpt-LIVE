@@ -9,6 +9,7 @@ Select scenes / tracks / clips and push GENERATE
 # Building MMM4Live
 
 Run the install.sh script, this should set everything up.
+Choose the (MMM.compose > My Mac scheme) 
 Then Build (press the play button)
 
 NB: MMM needs a .pt model to run, that must be placed in the "models" folder at the root of the repo (see release) 
