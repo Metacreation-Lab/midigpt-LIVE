@@ -15,8 +15,15 @@ Then Build (press the play button)
 NB: MMM needs a .pt model to run, that must be placed in the "models" folder at the root of the repo (see release) 
 
 
-## for the record 
+## Dependencies
 
+The Max externals in this repository are based on Cycling’74’s  [min-devkit](https://github.com/Cycling74/min-devkit).
+All dependencies of min-devkit are added as submodules to this repository. 
+
+
+## setup instructions - for the record 
+
+This should all be managed by the install.sh script
 Type the following commands in the Terminal:
 
 - `git clone git@github.com:jeffreyjohnens/MMM4LIVE.git`
@@ -32,9 +39,3 @@ This should generate a XCode project that you can then open.
 Choose the MMM.compose > My Mac scheme 
 
 You need to set the target (for this scheme) to MacOS 10.14 in the build settings (click on the MMM.compose item at the root of the explorer - left panel, then in the Deployment settings).
-
-
-## Dependencies
-
-The Max externals in this repository are based on Cycling’74’s  [min-devkit](https://github.com/Cycling74/min-devkit).
-All dependencies of min-devkit are added as submodules to this repository. 
