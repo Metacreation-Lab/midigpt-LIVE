@@ -7,7 +7,6 @@ project(MMM.compose)
 
 set(C74_MIN_API_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../min-api)
 include(${C74_MIN_API_DIR}/script/min-pretarget.cmake)
-# set(Torch_DIR /Users/bltzr/dev/miniforge_x86_64/envs/pytorch_x86/lib/python3.8/site-packages/torch/share/cmake/Torch)
 
 
 #############################################################
@@ -47,14 +46,5 @@ target_link_libraries(
             midifile
 )
 
-
-
-
 include(${C74_MIN_API_DIR}/script/min-posttarget.cmake)
 
-
-#############################################################
-# UNIT TEST
-#############################################################
-
-include(${C74_MIN_API_DIR}/test/min-object-unittest.cmake)
