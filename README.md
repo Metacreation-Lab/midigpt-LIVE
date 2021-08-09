@@ -8,6 +8,14 @@ Select scenes / tracks / clips and push GENERATE
 
 # Building MMM4Live
 
+Run the install.sh script, this should set everything up.
+Then Build (press the play button)
+
+NB: MMM needs a .pt model to run, that must be placed in the "models" folder at the root of the repo (see release) 
+
+
+## for the record 
+
 Type the following commands in the Terminal:
 
 - `git clone git@github.com:jeffreyjohnens/MMM4LIVE.git`
@@ -24,9 +32,6 @@ Choose the MMM.compose > My Mac scheme
 
 You need to set the target (for this scheme) to MacOS 10.14 in the build settings (click on the MMM.compose item at the root of the explorer - left panel, then in the Deployment settings).
 
-Then Build. (press the play button)
-
-NB: MMM needs a .pt model to run, that must be placed in the "models" folder at the root of the repo (see release) 
 
 ## Dependencies
 
