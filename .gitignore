@@ -16,3 +16,6 @@
 /source/projects/MMM.compose/MMM.compose.xcodeproj/project.xcworkspace/xcuserdata/bltzr.xcuserdatad/UserInterfaceState.xcuserstate
 /externals/.DS_Store
 /externals/MMM.compose.mxo
+/source/.DS_Store
+/source/projects/.DS_Store
+*.xcodeproj
