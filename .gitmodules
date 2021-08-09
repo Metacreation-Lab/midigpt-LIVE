@@ -1,9 +1,9 @@
 [submodule "source/min-lib"]
 	path = source/min-lib
-	url = https://bltzr@github.com/Cycling74/min-lib.git
+	url = git@github.com/Cycling74/min-lib.git
 [submodule "source/min-api"]
 	path = source/min-api
-	url = https://bltzr@github.com/Cycling74/min-api.git
+	url = git@github.com/Cycling74/min-api.git
 [submodule "source/projects/MMM.compose/MMM_API"]
 	path = source/projects/MMM.compose/MMM_API
-	url = https://bltzr@github.com/jeffreyjohnens/MMM_API.git
+	url = git@github.com/jeffreyjohnens/MMM_API.git
