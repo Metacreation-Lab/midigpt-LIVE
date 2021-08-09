@@ -13,7 +13,7 @@ include(${C74_MIN_API_DIR}/script/min-pretarget.cmake)
 # MAX EXTERNAL
 #############################################################
 
-set(CMAKE_PREFIX_PATH  /usr/local/lib/)
+set(CMAKE_PREFIX_PATH=`python3 -c 'import torch;print(torch.utils.cmake_prefix_path)'`)
 
 add_subdirectory("MMM_API/")
 
