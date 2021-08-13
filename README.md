@@ -14,11 +14,18 @@ Then Build (press the play button)
 
 NB: MMM needs a .pt model to run, that must be placed in the "models" folder at the root of the repo (see release) 
 
+## Deploying
+
+Deploying the external requires the (pytorch and protobuf) libs to be embedded into it.
+The `deploy.sh` script in the `source/MMM.compose` folder helps doing this.
+
 
 ## Dependencies
 
 The Max externals in this repository are based on Cycling’74’s  [min-devkit](https://github.com/Cycling74/min-devkit).
 All dependencies of min-devkit are added as submodules to this repository. 
+
+MMM API uses libtorch and protobuf, which are embedded as submodules.
 
 
 ## setup instructions - for the record 
