@@ -1,7 +1,7 @@
 {
 	"name" : "MMM",
 	"displayname" : "",
-	"version" : "0.5.4",
+	"version" : "0.1a3",
 	"author" : "Metacreation Lab SFU",
 	"authors" : [  ],
 	"description" : "Generate MIDI notes with machine-learning.",
@@ -16,18 +16,13 @@
 			"min_version" : "none",
 			"platform" : [ "x64" ]
 		}
-,
-		"windows" : 		{
-			"min_version" : "none",
-			"platform" : [ "x64" ]
-		}
 
 	}
 ,
-	"homepatcher" : "C++ Object Development Kit.maxpat",
+	"homepatcher" : "",
 	"package_extra" : 	{
-		"reverse_domain" : "com.cycling74",
-		"copyright" : "Copyright (c) 2018 Cycling '74"
+		"reverse_domain" : "net.metacreation",
+		"copyright" : "Copyright (c) 2021 Simon Fraser University"
 	}
 ,
 	"filelist" : 	{
