@@ -174,7 +174,7 @@ public:
             if (verbose) cout << "Setting track " << trackNr << "’s resample: " << args[1] << c74::min::endl;
         } else if (args[0]=="ignore" && args.size() >= 1){
             strack->set_ignore(bool(args[1]));//||autoignore);
-            if (verbose) cout << "Setting track " << trackNr << "’s resample: " << args[1] << c74::min::endl;
+            if (verbose) cout << "Setting track " << trackNr << "’s ignore: " << args[1] << c74::min::endl;
         }
         
         else if (args[0]=="get_status"){
