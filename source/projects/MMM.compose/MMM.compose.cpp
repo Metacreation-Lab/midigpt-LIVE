@@ -148,7 +148,7 @@ public:
         */
         
         else if (args[0]=="bars" && args.size() >= 2){
-            strack->clear_selected_bars();
+            if (strack->has_bars()) strack->clear_selected_bars();
             if (verbose) cout << "Generating " << args.size()-1 << " bars in track: " << trackNr << c74::min::endl;
             for (int i=1; i<args.size();i++) {
                 strack->add_selected_bars(bool(args[i]));
