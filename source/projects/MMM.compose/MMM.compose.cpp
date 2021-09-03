@@ -41,20 +41,27 @@ public:
             
         c74::min::lock lock {m_mutex};
     
+        if (args[0]=="clearNotes"){
+            if (verbose) cout << "Clearing piece and status" << c74::min::endl;
+            piece.Clear();
+            status.Clear();
+            //if (piece.events_size()) piece.clear_events();
+            piece.set_resolution(resolution);
+        }
+        
         /* ///////////////////////////////////////////////////////////////
         TRACKS:
         */
-        if (args[0]=="clearTrack" && (track)){
-            if (track->bars_size()) track->clear_bars();
-        }
+        
         else if (args[0]=="trackNr" && args.size() >= 2){
            trackNr = int(args[1]);
            
-            if ( trackNr < piece.tracks_size() ) {
+            if ( trackNr < piece.tracks_size() && trackNr < status.tracks_size() ) {
                if (verbose) cout <<    "______________________________________________" << c74::min::endl;
                if (verbose) cout <<  "_______________________CHOSEN TRACK: " << trackNr << c74::min::endl;
                track = piece.mutable_tracks(trackNr);
                strack = status.mutable_tracks(trackNr);
+               strack->set_track_id(trackNr);
            } else {
                if (verbose) cout << "the track #" << trackNr << " doesn’t exist! - creating tracks " << piece.tracks_size() << " to "  << trackNr << c74::min::endl;
                for (int i=piece.tracks_size(); i<=trackNr; i++){
@@ -71,13 +78,16 @@ public:
         /* ///////////////////////////////////////////////////////////////
         BARS:
         */
+        else if (args[0]=="clearTrack" && (track)){
+            if (track->bars_size()) track->clear_bars();
+        }
         else  if (args[0]=="barLength" && args.size() >= 2){
             barLength = args[1];
             if (verbose) cout << "Bar length: " << barLength << " quarter notes " << c74::min::endl;
         } else if (args[0]=="nBars" && args.size() >= 2){
             nBars = int(args[1]);
             if ( (track) && ( nBars == track->bars_size() )) {
-                if (verbose) cout << "chosen track: " << trackNr << " has " << track->bars_size() << " bars - filling " << nBars << " first bars." << c74::min::endl;
+                if (verbose) cout << "chosen track: " << trackNr << " has " << track->bars_size() << " bars - filling " << nBars << " bars." << c74::min::endl;
             } else if ( (track) && ( nBars < track->bars_size() )) {
                 if (verbose) cout << "chosen track: " << trackNr << " has " << track->bars_size() << " bars - filling " << nBars << " first bars." << c74::min::endl;
                 if (piece.mutable_tracks(trackNr)->bars_size()) piece.mutable_tracks(trackNr)->clear_bars();
@@ -97,11 +107,7 @@ public:
         /* ///////////////////////////////////////////////////////////////
         NOTES:
         */
-        else if (args[0]=="clearNotes"){
-            if (piece.events_size()) piece.clear_events();
-            piece.set_resolution(resolution);
-        }
-        else  if (args[0]=="notes" && args.size() >= 2){
+        else if (args[0]=="notes" && args.size() >= 2){
             if (verbose) cout << "number of notes: " << args[1] << c74::min::endl;
             ///TODO: see how to de this properly ? (looking at status strack ?)
              autoignore = !(bool(args[1]));
@@ -219,6 +225,7 @@ public:
             if (verbose) cout << "Creating new track #" << newTrackNr << " / " <<  nrTracksMoved  << " in piece copy" << c74::min::endl;
             track = pieceCopy.add_tracks();
             strack = statusCopy.add_tracks();
+            strack->set_track_id(trackNr);
         } else if (args[0]=="reorder_track" && args.size() >= 3){
             int trackNr = args[1];
             nrTracksMoved++;
@@ -227,6 +234,7 @@ public:
             track = pieceCopy.add_tracks();
             track->Swap(piece.mutable_tracks(trackNr));
             strack = statusCopy.add_tracks();
+            strack->set_track_id(args[2]);
             strack->Swap(status.mutable_tracks(trackNr));
         } else if (args[0]=="tracks_done" && args.size() >= 2){
             if (verbose) cout << "Tracks updating, swapping pieces with " << nrTracksMoved << " tracks" << c74::min::endl;
