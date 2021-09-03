@@ -45,12 +45,12 @@ public:
         TRACKS:
         */
         if (args[0]=="clearTrack" && (track)){
-            track->clear_bars();
+            if (track->bars_size()) track->clear_bars();
         }
         else if (args[0]=="trackNr" && args.size() >= 2){
            trackNr = int(args[1]);
            
-           if ( trackNr < piece.tracks_size() ) {
+            if ( trackNr < piece.tracks_size() ) {
                if (verbose) cout <<    "______________________________________________" << c74::min::endl;
                if (verbose) cout <<  "_______________________CHOSEN TRACK: " << trackNr << c74::min::endl;
                track = piece.mutable_tracks(trackNr);
@@ -64,6 +64,7 @@ public:
                }
                track = piece.mutable_tracks(trackNr);
                strack = status.mutable_tracks(trackNr);
+               strack->set_track_id(trackNr);
            }
         }
         
@@ -79,7 +80,7 @@ public:
                 if (verbose) cout << "chosen track: " << trackNr << " has " << track->bars_size() << " bars - filling " << nBars << " first bars." << c74::min::endl;
             } else if ( (track) && ( nBars < track->bars_size() )) {
                 if (verbose) cout << "chosen track: " << trackNr << " has " << track->bars_size() << " bars - filling " << nBars << " first bars." << c74::min::endl;
-                piece.mutable_tracks(trackNr)->clear_bars();
+                if (piece.mutable_tracks(trackNr)->bars_size()) piece.mutable_tracks(trackNr)->clear_bars();
                 for (int i=0; i<nBars; i++) piece.mutable_tracks(trackNr)->add_bars()->set_beat_length(barLength);
             } else if ( (track) && ( nBars > track->bars_size() ) ) {
                 int nAddedBars = nBars - track->bars_size();
@@ -97,7 +98,7 @@ public:
         NOTES:
         */
         else if (args[0]=="clearNotes"){
-            piece.clear_events();
+            if (piece.events_size()) piece.clear_events();
             piece.set_resolution(resolution);
         }
         else  if (args[0]=="notes" && args.size() >= 2){
@@ -148,7 +149,7 @@ public:
         */
         
         else if (args[0]=="bars" && args.size() >= 2){
-            if (strack->has_bars()) strack->clear_selected_bars();
+            if (strack->selected_bars_size()) strack->clear_selected_bars();
             if (verbose) cout << "Generating " << args.size()-1 << " bars in track: " << trackNr << c74::min::endl;
             for (int i=1; i<args.size();i++) {
                 strack->add_selected_bars(bool(args[i]));
@@ -157,11 +158,10 @@ public:
             }
         }
         else if (args[0]=="track_type" && args.size() >= 1){
-            strack->set_track_id(trackNr);
             strack->set_track_type(int(args[1])+10);
             track->set_type(int(args[1])+10);
             track->set_is_drum(bool(args[1]));
-            if (verbose) cout << "Setting track " << trackNr << "’s id + type: " << args[1] << c74::min::endl;
+            if (verbose) cout << "Setting track " << trackNr << "’s type: " << args[1] << c74::min::endl;
         } else if (args[0]=="instrument" && args.size() >= 3){
             strack->set_instrument(args[2]);
             track->set_instrument(args[1]);
@@ -312,7 +312,7 @@ public:
         param.set_encoder("TRACK_BAR_FILL_DENSITY_ENCODER");
         param.set_ckpt(ckpt_path);
         
-        // generate piece
+        // generate piece   
         try {
             if (verbose) cout << "Generating piece " << c74::min::endl;
             mmm::sample(&piece, &status, &param);
