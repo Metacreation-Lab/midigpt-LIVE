@@ -48,6 +48,9 @@ public:
             //if (piece.events_size()) piece.clear_events();
             piece.set_resolution(resolution);
         }
+        else if (args[0]=="DONE"){
+            if (verbose) cout << "Done for this clip" << c74::min::endl;
+        }
         
         /* ///////////////////////////////////////////////////////////////
         TRACKS:
@@ -126,27 +129,38 @@ public:
            
             // Note On:
             int barNr = int(startTime/(barLength*resolution));
-            startTime = startTime-barNr*barLength*resolution;
-            event = piece.add_events();
-            event->set_pitch(pitch);
-            event->set_time(startTime);
-            event->set_velocity(velocity);
-            // put in appropriate bar
-            int eventNr = piece.events_size()-1;
-            if (verbose) cout << "adding event #" << eventNr << " to track #" << trackNr << "’s bar #"  << barNr  << " at time "  << startTime <<  c74::min::endl;
-            piece.mutable_tracks(trackNr)->mutable_bars(barNr)->add_events(eventNr);
-            
-            // Note Off:
-            barNr = int(endTime/(barLength*resolution));
-            endTime = endTime-barNr*barLength*resolution;
-            event = piece.add_events();
-            event->set_pitch(pitch);
-            event->set_time(endTime);
-            event->set_velocity(0);
-            eventNr++;
-            // put in appropriate bar
-            if (verbose) cout << "adding event #" << eventNr << " to track #" << trackNr << "’s bar #" << barNr << " at time "  << endTime << c74::min::endl;
-            piece.mutable_tracks(trackNr)->mutable_bars(barNr)->add_events(eventNr);
+            if (barNr < piece.tracks(trackNr).bars_size()){
+                startTime = startTime-barNr*barLength*resolution;
+                event = piece.add_events();
+                event->set_pitch(pitch);
+                event->set_time(startTime);
+                event->set_velocity(velocity);
+                // put in appropriate bar
+                int eventNr = piece.events_size()-1;
+                if (verbose) cout << "adding event #" << eventNr << " (note start) to track #" << trackNr << "’s bar #"  << barNr  << " at time "  << startTime <<  c74::min::endl;
+                piece.mutable_tracks(trackNr)->mutable_bars(barNr)->add_events(eventNr);
+                
+                // Note Off:
+                barNr = int((endTime-1)/(barLength*resolution));
+                if (barNr < piece.tracks(trackNr).bars_size()){
+                    endTime = endTime-barNr*barLength*resolution;}
+                else {
+                    endTime=barLength*resolution;
+                    int oldBarNr = barNr;
+                    barNr = piece.tracks(trackNr).bars_size()-1;
+                    cout << "event #" << eventNr << " (note end) is happening in bar #"  << oldBarNr  << ", clipping to time:  "  << endTime << " in bar #" << barNr <<  c74::min::endl;
+                }
+                event = piece.add_events();
+                event->set_pitch(pitch);
+                event->set_time(endTime);
+                event->set_velocity(0);
+                eventNr++;
+                if (verbose) cout << "adding event #" << eventNr << " (note end) to track #" << trackNr << "’s bar #" << barNr << " at time "  << endTime << c74::min::endl;
+                piece.mutable_tracks(trackNr)->mutable_bars(barNr)->add_events(eventNr);
+                
+            }
+            else cout << "trying to add event (note start) to track #" << trackNr << "’s bar #"  << barNr  << " while it has only  "  << piece.tracks(trackNr).bars_size() << " bars! - discarding this event" <<  c74::min::endl;
+
             
         }
         
@@ -353,6 +367,7 @@ public:
                         time = std::get<0>(pool[pitch]) ;
                         vel  = std::get<1>(pool[pitch]);
                         dur = float(bar_start_time + e.time()) / piece.resolution() - time;
+                        if (dur==0) cout << "Duration null, at time: " << time << " with vel: " << vel << " and pitch: " << pitch  << " (note num): " << note_num <<  c74::min::endl;
                         output("note", note_num, pitch, time , dur, vel);
                         note_num++;
                     }
@@ -386,7 +401,7 @@ public:
     // post to max window == but only when the class is loaded the first time
     message<> maxclass_setup { this, "maxclass_setup",
         MIN_FUNCTION {
-            cout << "MMM compose object by Metacreation lab - SFU" << c74::min::endl;
+            cout << "MMM compose object by Metacreation lab - SFU v.0.1a12" << c74::min::endl;
             piece.set_resolution(resolution);
             piece.set_tempo(tempo);
             param.set_tracks_per_step(1);

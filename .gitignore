@@ -21,3 +21,7 @@
 *.xcodeproj
 /MMM-example10 Project/Backup
 .DS_Store
+/temp/generated.json
+/temp/piece.json
+/temp/sample.json
+/temp/status.json
