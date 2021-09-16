@@ -1,7 +1,7 @@
 {
 	"name" : "MMM",
 	"displayname" : "",
-	"version" : "0.1a3",
+	"version" : "0.1b1",
 	"author" : "Metacreation Lab SFU",
 	"authors" : [  ],
 	"description" : "Generate MIDI notes with machine-learning.",
