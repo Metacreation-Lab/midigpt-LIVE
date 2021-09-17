@@ -9,12 +9,20 @@
 #include <map>
 #include <tuple>
 
+//#include <mach-o/dyld.h>
+
+#ifdef __APPLE__
+#include "CoreFoundation/CoreFoundation.h"
+#define MY_PLUGIN_BUNDLE_IDENTIFIER net.metacreation.MMMcompose
+#endif
+
 #include "./MMM_API/src/mmm_api/midi_io.h" // only needed for MIDI input/output
 #include "./MMM_API/src/mmm_api/protobuf/midi.pb.h"
 #include "./MMM_API/src/mmm_api/protobuf/midi.pb.cc"
 #include "./MMM_API/src/mmm_api/sampling/multi_step_sample.h"
 
-std::string ckpt_path = "../models/paper_bar_4.pt";
+std::string ckpt_path = "";
+std::string ckpt_name = "paper_bar_4.pt";
 
 using namespace c74::min;
 using namespace c74::min::lib;
@@ -309,10 +317,14 @@ public:
         } else if (args[0]=="batch_size" && args.size() >= 2){
             param.set_batch_size(batch_size = args[1]);
         } else if (args[0]=="model_path" && args.size() >= 2){
-            param.set_ckpt(ckpt_path = std::string(args[1]));
+            ckpt_name = std::string(args[1]);
+            ckpt_path = getModelsPath()+ckpt_name;
+            param.set_ckpt(ckpt_path);// = std::string(args[1]));
             if (verbose)
             {cout << "Chosen model path: " << ckpt_path << c74::min::endl;
                 dump_output.send( "model_path", ckpt_path );}
+        } else if (args[0]=="get_models_folder"){
+            dump_output.send( "get_models_folder", getModelsPath() );
         }
 
         return {};
@@ -343,6 +355,7 @@ public:
         param.set_polyphony_hard_limit(polyphony_hard_limit);
         param.set_verbose(true);
         param.set_encoder("TRACK_BAR_FILL_DENSITY_ENCODER");
+        ckpt_path = getModelsPath()+ckpt_name;
         param.set_ckpt(ckpt_path);
         
         // generate piece   
@@ -427,7 +440,11 @@ public:
             param.set_polyphony_hard_limit(5);
             param.set_verbose(false);
             param.set_encoder("TRACK_BAR_FILL_DENSITY_ENCODER");
+            ckpt_path = getModelsPath()+"paper_bar_4.pt";
             param.set_ckpt(ckpt_path);
+            
+            cout << "Bundle path is\n" << getModelsPath() << c74::min::endl;
+         
             return {};
         }
     };
@@ -466,16 +483,31 @@ private:
                 
     std::vector<std::string> generic_instruments {	"any", "piano", "chromatic_perc", "organ", "guitar", "bass", "strings", "ensemble", "brass", "reed", "pipe", "synth_lead", "synth_pad", "synth_effects", "ethnic", "percussive", "sound_fx" };
                 
-   std::string version_number {"v.0.1b1"};
-
-    /*
-    // We need a scene struct for interaction with Live:
-    struct LiveScene{
-        //std::vector<MMMbar*> bars{};
-        int barOffset{0};
-        int eventOffset{0};
-    };
-    */
+    std::string version_number {"v.0.1b1"};
+    //std::string modelsPath;
+                
+    std::string getModelsPath() {
+                    
+#ifdef __APPLE__
+                    
+#define QUOTE(str) #str
+#define EXPAND_AND_QUOTE(str) QUOTE(str)
+#define MY_PLUGIN_BUNDLE_IDENTIFIER_STRING EXPAND_AND_QUOTE(MY_PLUGIN_BUNDLE_IDENTIFIER)
+                    
+                    CFBundleRef mainBundle = CFBundleGetBundleWithIdentifier(CFSTR(MY_PLUGIN_BUNDLE_IDENTIFIER_STRING));
+                    CFURLRef resourcesURL = CFBundleCopyResourcesDirectoryURL(mainBundle);
+                    char path[PATH_MAX];
+                    if (!CFURLGetFileSystemRepresentation(resourcesURL, TRUE, (UInt8 *)path, PATH_MAX))
+                    {
+                        // error!
+                    }
+                    CFRelease(resourcesURL);
+                    
+                    std::string modelsPath = strcat(path, "/models/");
+                    return modelsPath;
+                    
+#endif
+                };
                
 };
 
