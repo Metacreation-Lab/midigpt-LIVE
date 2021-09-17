@@ -15,6 +15,8 @@ include(${C74_MIN_API_DIR}/script/min-pretarget.cmake)
 
 set(CMAKE_PREFIX_PATH=`python3 -c 'import torch;print(torch.utils.cmake_prefix_path)'`)
 
+set(MACOSX_BUNDLE_GUI_IDENTIFIER="net.metacreation.MMMcompose")
+
 add_subdirectory("MMM_API/")
 
 find_package(Protobuf REQUIRED)
@@ -44,6 +46,7 @@ target_link_libraries(
             ${Protobuf_LIBRARIES}
             ${TORCH_LIBRARIES}
             midifile
+            "-framework Foundation"
 )
 
 include(${C74_MIN_API_DIR}/script/min-posttarget.cmake)
