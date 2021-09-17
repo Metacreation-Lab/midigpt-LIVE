@@ -16,6 +16,7 @@ install_name_tool -change /usr/local/opt/libtorch/lib/libtorch_cpu.dylib @loader
 install_name_tool -change /usr/local/opt/protobuf/lib/libprotobuf.28.dylib @loader_path/../Frameworks/libprotobuf.28.dylib ../../../externals/MMM.compose.mxo/Contents/Frameworks/libtorch_cpu.dylib
 install_name_tool -change /usr/local/opt/protobuf/lib/libprotobuf.28.dylib @loader_path/../Frameworks/libprotobuf.28.dylib ../../../externals/MMM.compose.mxo/Contents/Frameworks/libtorch.dylib
 
-# cp /usr/local/lib/libkineto.a ../../../externals/MMM.compose.mxo/Contents/Frameworks/libkineto.a
-# cp MMM_API/Debug/libmidifile.a ../../../externals/MMM.compose.mxo/Contents/Frameworks/libmidifile.a
-# @executable_path/../Frameworks/JitterAPI.framework/Versions/A/JitterAPI 
+cp -f deployment/Info.plist ../../../externals/MMM.compose.mxo/Contents/Info.plist
+
+mkdir ../../../externals/MMM.compose.mxo/Contents/Resources/models
+cp -f deployment/models/*.pt ../../../externals/MMM.compose.mxo/Contents/Resources/models/
