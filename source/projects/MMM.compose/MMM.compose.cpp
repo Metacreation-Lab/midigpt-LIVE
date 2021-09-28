@@ -21,6 +21,15 @@
 #include "./MMM_API/src/mmm_api/protobuf/midi.pb.cc"
 #include "./MMM_API/src/mmm_api/sampling/multi_step_sample.h"
 
+
+
+/////////// VERSION NUMBER ///////////
+std::string version_number {"v.0.1b2"};
+///////////////////////////////////////
+
+
+
+
 std::string ckpt_path = "";
 std::string ckpt_name = "paper_bar_4.pt";
 
@@ -482,9 +491,6 @@ private:
     bool verbose{false};
                 
     std::vector<std::string> generic_instruments {	"any", "piano", "chromatic_perc", "organ", "guitar", "bass", "strings", "ensemble", "brass", "reed", "pipe", "synth_lead", "synth_pad", "synth_effects", "ethnic", "percussive", "sound_fx" };
-                
-    std::string version_number {"v.0.1b1"};
-    //std::string modelsPath;
                 
     std::string getModelsPath() {
                     
