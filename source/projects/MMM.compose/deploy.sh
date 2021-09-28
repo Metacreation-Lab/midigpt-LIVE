@@ -18,5 +18,6 @@ install_name_tool -change /usr/local/opt/protobuf/lib/libprotobuf.28.dylib @load
 
 cp -f deployment/Info.plist ../../../externals/MMM.compose.mxo/Contents/Info.plist
 
-mkdir ../../../externals/MMM.compose.mxo/Contents/Resources/models
-cp -f deployment/models/*.pt ../../../externals/MMM.compose.mxo/Contents/Resources/models/
+mkdir ../../../externals/MMM.compose.mxo/Contents/Resources/
+mkdir ../../../externals/MMM.compose.mxo/Contents/Resources/MMModels
+cp -f deployment/models/*.pt ../../../externals/MMM.compose.mxo/Contents/Resources/MMModels/

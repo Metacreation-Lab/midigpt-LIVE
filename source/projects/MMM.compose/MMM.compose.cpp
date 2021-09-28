@@ -503,7 +503,7 @@ private:
                     }
                     CFRelease(resourcesURL);
                     
-                    std::string modelsPath = strcat(path, "/models/");
+                    std::string modelsPath = strcat(path, "/MMModels/");
                     return modelsPath;
                     
 #endif
