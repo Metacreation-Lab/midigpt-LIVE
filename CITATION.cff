@@ -1,0 +1,40 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it, and the MIDI-GPT paper, using the metadata below."
+title: "MIDI-GPT for Live"
+abstract: "A Max for Live device that generates MIDI in Ableton Live clips with the MIDI-GPT model."
+version: 0.1.0
+url: "https://github.com/DaoTwenty/midigpt-LIVE"
+repository-code: "https://github.com/DaoTwenty/midigpt-LIVE"
+license: MIT
+type: software
+authors:
+  - family-names: Triana
+    given-names: Paul
+    affiliation: Simon Fraser University
+  - name: "Metacreation Lab for Creative AI"
+preferred-citation:
+  type: conference-paper
+  title: "MIDI-GPT: A Controllable Generative Model for Computer-Assisted Multitrack Music Composition"
+  authors:
+    - family-names: Pasquier
+      given-names: Philippe
+    - family-names: Ens
+      given-names: Jeff
+    - family-names: Fradet
+      given-names: Nathan
+    - family-names: Triana
+      given-names: Paul
+    - family-names: Rizzotti
+      given-names: Davide
+    - family-names: Rolland
+      given-names: Jean-Baptiste
+    - family-names: Safi
+      given-names: Maryam
+  collection-title: "Proceedings of the AAAI Conference on Artificial Intelligence"
+  volume: 39
+  year: 2025
+  url: "https://arxiv.org/abs/2501.17011"
+  identifiers:
+    - type: other
+      value: "arXiv:2501.17011"
+      description: arXiv preprint
