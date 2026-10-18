@@ -1,8 +1,8 @@
 site_name: MIDI-GPT for Live
 site_description: A multitrack MIDI generation machine for Ableton Live
-site_url: https://daotwenty.github.io/midigpt-LIVE/
-repo_url: https://github.com/DaoTwenty/midigpt-LIVE
-repo_name: DaoTwenty/midigpt-LIVE
+site_url: https://metacreation-lab.github.io/midigpt-LIVE/
+repo_url: https://github.com/Metacreation-Lab/midigpt-LIVE
+repo_name: Metacreation-Lab/midigpt-LIVE
 copyright: Copyright &copy; 2026 Metacreation Lab for Creative AI, Simon Fraser University
 edit_uri: ""
 

@@ -1,9 +1,8 @@
 name: Docs
 
+# Manual for now: GitHub Pages needs the repository to be public. When it is, turn on Pages (source: GitHub Actions)
+# and add:  push: { branches: [master], paths: ["docs/**", "mkdocs.yml"] }
 on:
-  push:
-    branches: [master, release-prep]
-    paths: ["docs/**", "mkdocs.yml", ".github/workflows/docs.yml"]
   workflow_dispatch:
 
 permissions:

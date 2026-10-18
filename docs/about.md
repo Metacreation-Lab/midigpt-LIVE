@@ -19,7 +19,7 @@ If you use MIDI-GPT in your work, please cite the paper:
 ```
 
 To cite the device itself, use the repository's
-[CITATION.cff](https://github.com/DaoTwenty/midigpt-LIVE/blob/master/CITATION.cff) (GitHub's **Cite this repository**
+[CITATION.cff](https://github.com/Metacreation-Lab/midigpt-LIVE/blob/master/CITATION.cff) (GitHub's **Cite this repository**
 button).
 
 ## Related

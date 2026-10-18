@@ -186,7 +186,7 @@ def end_card(img, alpha):
     f2 = font("AbletonSansSmall-Regular.ttf", int(H * 0.026))
     y = ty + t.size[1] + H * 0.07
     d.text((W / 2, y), "FREE  ·  OPEN SOURCE  ·  MAX FOR LIVE", font=f1, fill=(255, 150, 70, 255), anchor="mm")
-    d.text((W / 2, y + H * 0.06), "github.com/DaoTwenty/midigpt-LIVE", font=f2, fill=(170, 170, 170, 255), anchor="mm")
+    d.text((W / 2, y + H * 0.06), "github.com/Metacreation-Lab/midigpt-LIVE", font=f2, fill=(170, 170, 170, 255), anchor="mm")
     card.putalpha(Image.eval(card.getchannel("A"), lambda v: int(v * alpha)))
     dark = Image.new("RGBA", (W, H), (13, 13, 13, int(245 * alpha)))
     return Image.alpha_composite(Image.alpha_composite(img.convert("RGBA"), dark), card).convert("RGB")

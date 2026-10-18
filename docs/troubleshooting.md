@@ -18,7 +18,7 @@
 | **CTX LIMIT** | the takes may be cut short: lower **CONTEXT** or generate fewer bars |
 | **TAKES LOST** | some takes failed the checks; the others are ready |
 | **TAG FAILED** | Live didn't load the tag device: drag **MIDI-GPT Instrument** from the MIDI-GPT folder onto the track |
-| **SRV FAULT** · **BAD REQUEST** | something broke on the server or in the device: retry, and if it repeats, [report it](https://github.com/DaoTwenty/midigpt-LIVE/issues) with `midigpt.log` |
+| **SRV FAULT** · **BAD REQUEST** | something broke on the server or in the device: retry, and if it repeats, [report it](https://github.com/Metacreation-Lab/midigpt-LIVE/issues) with `midigpt.log` |
 
 ## Other problems
 
@@ -45,5 +45,5 @@
 | Server | `~/Library/Application Support/MIDI-GPT/server` (its window shows the log) |
 | Models | `~/.cache/huggingface` |
 
-Still stuck? [Open an issue](https://github.com/DaoTwenty/midigpt-LIVE/issues) with what you did and what the
+Still stuck? [Open an issue](https://github.com/Metacreation-Lab/midigpt-LIVE/issues) with what you did and what the
 stats screen said.

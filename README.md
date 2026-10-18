@@ -18,7 +18,7 @@
 - **Takes**: generate up to 16 versions at once, step through them in place, go back to the original, or keep one.
 - **Runs on your computer**: the model runs in a local server; nothing leaves your machine unless you point the device at a server elsewhere.
 
-**Documentation:** [daotwenty.github.io/midigpt-LIVE](https://daotwenty.github.io/midigpt-LIVE/): install, a tour of every control, workflows and troubleshooting.
+**Documentation:** [metacreation-lab.github.io/midigpt-LIVE](https://metacreation-lab.github.io/midigpt-LIVE/): install, a tour of every control, workflows and troubleshooting.
 
 Companion project: [MIDI-GPT for REAPER](https://github.com/Metacreation-Lab/midigpt-REAPER).
 
@@ -63,7 +63,7 @@ Companion project: [MIDI-GPT for REAPER](https://github.com/Metacreation-Lab/mid
 ### One-Line Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/DaoTwenty/midigpt-LIVE/HEAD/bootstrap.sh | bash
+curl -fsSL https://metacreation.net/midigpt-live/bootstrap.sh | bash
 ```
 
 This downloads the latest release and copies the **MIDI-GPT** folder into your Live User Library (the location is read from Live's preferences). It then asks whether to set up a server on this computer: a Python environment in `~/Library/Application Support/MIDI-GPT/server` with `midigpt`, a **Start MIDI-GPT Server** launcher, and the model. Skip that step if your server runs on another machine.
@@ -81,7 +81,7 @@ Options go after `bash -s --`, for example `curl -fsSL …/bootstrap.sh | bash -
 
 ### Manual Install
 
-1. **The device.** Download `MIDI-GPT-for-Live-<version>.zip` from the [latest release](https://github.com/DaoTwenty/midigpt-LIVE/releases/latest), unzip it, and move the `MIDI-GPT` folder into your User Library (by default `~/Music/Ableton/User Library`). Keep both devices together:
+1. **The device.** Download `MIDI-GPT-for-Live-<version>.zip` from the [latest release](https://github.com/Metacreation-Lab/midigpt-LIVE/releases/latest), unzip it, and move the `MIDI-GPT` folder into your User Library (by default `~/Music/Ableton/User Library`). Keep both devices together:
 
    | file | |
    |---|---|
@@ -124,7 +124,7 @@ xattr -dr com.apple.quarantine ~/Music/Ableton/User\ Library/MIDI-GPT
 Run the one-line install again to update: it replaces the devices and keeps your settings and server. To remove everything:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/DaoTwenty/midigpt-LIVE/HEAD/bootstrap.sh | bash -s -- --uninstall
+curl -fsSL https://metacreation.net/midigpt-live/bootstrap.sh | bash -s -- --uninstall
 ```
 
 This removes the MIDI-GPT folder from the User Library, the server environment, the launchers and the settings. Downloaded models stay in `~/.cache/huggingface` (delete `models--Metacreation--MIDI-GPT` there to free the space).
@@ -192,7 +192,7 @@ The server can run on another computer, such as a studio machine with more power
 | **TOP-K** | 0–500 (off) | sample only from the K most likely choices |
 | **ESC** | 1–3 (1) | raise the temperature on each retry after a rejected result |
 | **TAKES** | 1–16 (1) | how many versions to generate |
-| **SEED** | 0–999 (random) | a fixed seed repeats a result exactly |
+| **SEED** | 1–2147483647 (random) | click the screen to type one; **DICE** picks a random seed, **LOCK** keeps the last run's (or the selected take's). A fixed seed repeats a result exactly. |
 | **NOVELTY · SILENCE · SHUFFLE** | on / off | reject copies of the context, reject empty bars, vary the order tracks are generated in |
 
 **MASKS**, for the selected track.
@@ -240,7 +240,7 @@ The devices are built from the sources in this repository; [CLAUDE.md](CLAUDE.md
 ```
 patchers/        MIDI-GPT.amxd and MIDI-GPT Instrument.amxd (built by the scripts below)
 javascript/      midigpt.js (Live API, state, HTTP client) and the panel, strip, tag and Node helper scripts
-media/panel/     the panel's rendered images
+media/panel/     the panel's images, rendered in Blender
 tools/           build, release, freezing, asset and dev scripts
 install.sh       the installer (bootstrap.sh downloads and runs it)
 ```
@@ -248,7 +248,7 @@ install.sh       the installer (bootstrap.sh downloads and runs it)
 ```bash
 python3 tools/build_device.py           # patchers/MIDI-GPT.amxd: panel window, strip key, dependencies (in place)
 python3 tools/build_tag_device.py       # patchers/MIDI-GPT Instrument.amxd
-python3 tools/export_panel_assets.py    # media/panel/midigpt_*.png + javascript/midigpt_panel_spec.js
+python3 tools/export_panel_assets.py    # javascript/midigpt_panel_spec.js (and lo-fi panel images: see CLAUDE.md, Panel assets)
 python3 tools/build_release.py          # dist/MIDI-GPT-for-Live-<VERSION>.zip, both devices frozen
 ```
 

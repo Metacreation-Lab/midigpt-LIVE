@@ -4,7 +4,7 @@
 #   1. the device: downloads the release zip and copies the MIDI-GPT folder into Live's User Library
 #   2. the server (optional, asked): a Python environment with midigpt, a launcher, and the model
 #
-#   curl -fsSL https://raw.githubusercontent.com/DaoTwenty/midigpt-LIVE/HEAD/bootstrap.sh | bash
+#   curl -fsSL https://metacreation.net/midigpt-live/bootstrap.sh | bash
 #   ./install.sh [options]
 #
 # Options
@@ -21,7 +21,7 @@
 
 set -euo pipefail
 
-REPO="${MIDIGPT_LIVE_REPO:-DaoTwenty/midigpt-LIVE}"
+REPO="${MIDIGPT_LIVE_REPO:-Metacreation-Lab/midigpt-LIVE}"
 MIDIGPT_VERSION="${MIDIGPT_VERSION:-0.3.4}"
 PORT=3456
 ZIP="" VERSION="" USER_LIB="" SERVER="ask" SERVER_DIR="" MODEL="" YES=0 UNINSTALL=0 LAUNCH=""

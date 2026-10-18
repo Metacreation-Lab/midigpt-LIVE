@@ -6,6 +6,27 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0]
+
+### Added
+- Single generations stream: NOTES, TOK/S, CTX and the retry attempt update on the stats screen while it runs
+  (live progress needs a server with streamed progress; older servers fill the stats when done).
+- The seed is a small screen: click to type a seed (digits only, 1–2147483647), **DICE** for a random one, **LOCK**
+  to keep the last run's or the selected take's seed.
+- Panel images, path-traced in Blender from the same geometry: real shadows, glossy knobs.
+- Documentation site (MkDocs): install, a page per panel area, workflows, troubleshooting, developer notes.
+- Release trailer (full and short cuts).
+
+### Changed
+- All HTTP goes through the Node helper: a reply arriving after the device was closed or deleted could crash Live.
+- Stats read the server's real fields (TOK/S and CTX were always empty); ATT shows the accepted attempt.
+- Long note and state messages to the panel are sent in parts (large scenes showed an empty roll).
+- The project now lives at Metacreation-Lab/midigpt-LIVE; the one-line install is
+  `curl -fsSL https://metacreation.net/midigpt-live/bootstrap.sh | bash`.
+
+### Fixed
+- RUNNING and STOPPING overlapped the STATUS label.
+
 ## [0.1.0]
 
 First release.

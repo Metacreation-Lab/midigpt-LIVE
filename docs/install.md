@@ -3,7 +3,7 @@
 ## One-line install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/DaoTwenty/midigpt-LIVE/HEAD/bootstrap.sh | bash
+curl -fsSL https://metacreation.net/midigpt-live/bootstrap.sh | bash
 ```
 
 This downloads the latest release and copies the **MIDI-GPT** folder into your Live User Library (its location is
@@ -25,7 +25,7 @@ Options go after `bash -s --`, for example `… | bash -s -- --no-server`:
 ## Manual install
 
 1. **The devices.** Download `MIDI-GPT-for-Live-<version>.zip` from the
-   [latest release](https://github.com/DaoTwenty/midigpt-LIVE/releases/latest), unzip it, and move the `MIDI-GPT`
+   [latest release](https://github.com/Metacreation-Lab/midigpt-LIVE/releases/latest), unzip it, and move the `MIDI-GPT`
    folder into your User Library (by default `~/Music/Ableton/User Library`). Keep both devices together:
 
     | File | |
@@ -78,7 +78,7 @@ Run the one-line install again to update: it replaces the devices and keeps your
 everything:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/DaoTwenty/midigpt-LIVE/HEAD/bootstrap.sh | bash -s -- --uninstall
+curl -fsSL https://metacreation.net/midigpt-live/bootstrap.sh | bash -s -- --uninstall
 ```
 
 This removes the MIDI-GPT folder from the User Library, the server environment, the launchers and the settings.

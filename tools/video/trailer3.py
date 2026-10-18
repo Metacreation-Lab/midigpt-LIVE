@@ -408,7 +408,7 @@ def frame_at(cut, sec, size, i=None):
         u = (bar - eb0) / (eb1 - eb0)
         img = title_card(img, smooth(u / 0.3),          # holds until the logo takes over (no gap showing the panel)
                          [("FREE  ·  OPEN SOURCE  ·  MAX FOR LIVE", 0.03, ORANGE, True),
-                          ("github.com/DaoTwenty/midigpt-LIVE", 0.026, (170, 170, 170), False)], dark=235)
+                          ("github.com/Metacreation-Lab/midigpt-LIVE", 0.026, (170, 170, 170), False)], dark=235)
     return img
 
 
@@ -416,9 +416,9 @@ def work(args):
     i, sec, cut, size, out, draft, plates = args
     global DRAFT, PLATES
     DRAFT, PLATES = draft, plates
-    path = os.path.join(out, "f%05d.png" % i)
+    path = os.path.join(out, ("f%05d.jpg" if plates else "f%05d.png") % i)   # final frames: JPEG q95 (5x smaller)
     if not os.path.exists(path):
-        frame_at(cut, sec, size, i).save(path)
+        frame_at(cut, sec, size, i).save(path, **({"quality": 95, "subsampling": 0} if plates else {}))
 
 
 def main():
@@ -451,7 +451,7 @@ def main():
             if k % 240 == 0:
                 print("frame", k, "/", n, flush=True)
     mp4 = os.path.join(out, "midigpt_trailer_%s.mp4" % cut)
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(fps), "-i", os.path.join(out, "f%05d.png"),
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(fps), "-i", os.path.join(out, "f%05d.jpg" if plates else "f%05d.png"),
                     "-ss", "%.4f" % (PREROLL[cut] * BAR), "-i", wav, "-map", "0:v", "-map", "1:a",
                     "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", "-preset", "slow",
                     "-c:a", "aac", "-b:a", "256k", "-af", "loudnorm=I=-14:TP=-1:LRA=9", "-shortest", mp4], check=True)

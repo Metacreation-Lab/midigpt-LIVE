@@ -2,9 +2,9 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it, and the MIDI-GPT paper, using the metadata below."
 title: "MIDI-GPT for Live"
 abstract: "A Max for Live device that generates MIDI in Ableton Live clips with the MIDI-GPT model."
-version: 0.1.0
-url: "https://github.com/DaoTwenty/midigpt-LIVE"
-repository-code: "https://github.com/DaoTwenty/midigpt-LIVE"
+version: 0.2.0
+url: "https://github.com/Metacreation-Lab/midigpt-LIVE"
+repository-code: "https://github.com/Metacreation-Lab/midigpt-LIVE"
 license: MIT
 type: software
 authors:

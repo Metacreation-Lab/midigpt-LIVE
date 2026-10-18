@@ -83,7 +83,7 @@ def inline(name, seen=()):
 
 def main():
     version = open(os.path.join(ROOT, "VERSION")).read().strip()
-    repo = os.environ.get("MIDIGPT_LIVE_REPO", "DaoTwenty/midigpt-LIVE")
+    repo = os.environ.get("MIDIGPT_LIVE_REPO", "Metacreation-Lab/midigpt-LIVE")
     stage = os.path.join(DIST, "stage")
     out = os.path.join(DIST, FOLDER)
     for d in (stage, out):

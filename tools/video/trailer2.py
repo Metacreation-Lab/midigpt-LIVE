@@ -323,7 +323,7 @@ def frame_at(cut, sec, size):
         u = (bar - eb0) / (eb1 - eb0)
         img = title_card(img, smooth(u / 0.3) * smooth((1 - u) / 0.12) if bar < eb1 else 0,
                          [("FREE  ·  OPEN SOURCE  ·  MAX FOR LIVE", 0.03, ORANGE, True),
-                          ("github.com/DaoTwenty/midigpt-LIVE", 0.026, (170, 170, 170), False)], dark=235)
+                          ("github.com/Metacreation-Lab/midigpt-LIVE", 0.026, (170, 170, 170), False)], dark=235)
     return img
 
 

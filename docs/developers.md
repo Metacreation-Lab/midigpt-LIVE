@@ -1,7 +1,7 @@
 # For developers
 
-MIDI-GPT for Live is built from the sources in [the repository](https://github.com/DaoTwenty/midigpt-LIVE).
-[CLAUDE.md](https://github.com/DaoTwenty/midigpt-LIVE/blob/master/CLAUDE.md) has the full architecture notes, the
+MIDI-GPT for Live is built from the sources in [the repository](https://github.com/Metacreation-Lab/midigpt-LIVE).
+[CLAUDE.md](https://github.com/Metacreation-Lab/midigpt-LIVE/blob/master/CLAUDE.md) has the full architecture notes, the
 pitfalls met along the way, and the tools.
 
 ## How it works
