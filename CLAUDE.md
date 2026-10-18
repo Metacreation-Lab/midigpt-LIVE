@@ -33,10 +33,12 @@ javascript/
   midigpt_strip.js        the device strip in Live's chain: one key that opens the window
   midigpt_tag.js          face of the tag device (readout + Family / Program menus)
   midigpt_node.js         Node for Max: open the tag device in Live, per-user settings file
-media/panel/midigpt_*.png rendered lo-fi assets (export_panel_assets.py from tools/frontend_assets.py + render_ui.py)
+media/panel/midigpt_*.png panel assets, path-traced in Blender (see Panel assets below)
 ```
 
-midigpt.js outlets: 0 → the window (`panel_state <json>`, `panel_notes <json>`), 1 → the dev bridge's `udpsend`, 2 → `node.script midigpt_node.js` (`open_tag`, `config_set`). Its inlet takes `panel <verb> ...` from the panel (`panel_message()`), `server_url <url>` from the address field, `tag_changed` (from `[r midigpt_tag_changed]`), and `config <key> <value>` / `node_error` from the helper (`handle_message()`).
+midigpt.js outlets: 0 → the window (`panel_state <json>`, `panel_notes <json>`), 1 → the dev bridge's `udpsend`, 2 → `node.script midigpt_node.js` (`open_tag`, `config_set`, `hello`, and HTTP: `http_body` / `http_send` / `http_abort`). Its inlet takes `panel <verb> ...` from the panel (`panel_message()`), `server_url <url>` from the address field, `tag_changed` (from `[r midigpt_tag_changed]`), and `config <key> <value>` / `config_ready` / `node_error` / `http_chunk` / `http_done` / `http_timeout` from the helper (`handle_message()`).
+
+**All HTTP goes through the Node helper, never Max's `XMLHttpRequest`.** A reply that reaches Max's XMLHttpRequest after its js object is freed (closing or switching sets, deleting the device, with a request in flight; the 15 s `/health` poll is usually in flight when the server is down) crashes Live, even after `abort()`. `new_request()` returns a `NodeRequest` with the subset of the XMLHttpRequest interface the code uses; bodies and replies travel in 4000-character chunks prefixed with `|` (so Max never reads a chunk as a number), and requests made before the helper says `config_ready` are queued (`init()` sends `hello` so a helper that started first answers again). A single generation (`num_candidates` 1) is sent with `stream: true`: the helper parses the server's event stream, forwards each notes/progress frame as `http_event <id> <|json>` (live NOTES, TOK/S, CTX and ATT on the stats screen, `panel_generation_progress`), and hands the final frame's response back as an ordinary reply. Progress frames need the server's `progress` field (MIDI-GPT branch `feat/http-stream-progress`); older servers still stream notes and fill the stats when done.
 
 The panel window is 960 x 640, split into region jsuis (top, roll, main, output, masks) so each repaints only when its own `regionKey()` changes; page backgrounds are fpics shown/hidden by page. The server address is a native `textedit` (`setup_url`) over the SETUP screen. Pushes start when the panel says `ready` (`panel_ready`).
 
@@ -65,6 +67,18 @@ Model facts the UI depends on: density is drum-only on the current checkpoints (
 - `textedit` takes `set <text>` to show text without output; it has no `settext` message.
 - **Logging is free when off.** `flog()` and the file log only run in dev mode; the file log is buffered and flushed at most once a second.
 - Max's `File`: `eof` is the file **length**, not a flag, and `"write"` mode does **not** truncate. Settings files are written by the Node helper instead.
+
+## Panel assets
+
+`media/panel/midigpt_*.png` are Blender renders of the exact geometry `tools/frontend_assets.py` builds; only the lighting differs. `tools/export_panel_assets.py` writes its own lo-fi shading and would overwrite them (it still writes `midigpt_panel_spec.js`). To re-render:
+
+```bash
+python3 tools/video/asset_fields.py dist/assets/fields           # heightfields + materials per asset (and the lo-fi PNGs)
+blender -b -P tools/video/blender_panel_assets.py -- --fields dist/assets/fields --out dist/assets/raw   # or the panel-assets prism job
+python3 tools/video/finish_panel_assets.py dist/assets/fields dist/assets/raw dist/assets/blender --install
+```
+
+`docs/images/title.png` goes the same way: `render_readme_art.py title --fields`, Blender, then `title --blender <title.npy>`.
 
 ## Tools
 

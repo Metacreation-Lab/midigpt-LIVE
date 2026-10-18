@@ -7,8 +7,11 @@ Render the README art in the device's own style (the Carbon panel of tools/rende
   docs/images/hero.png    a screenshot of the device in Live, on a plain monitor facing the camera,
                           on the panel's carbon background
 
-  python3 tools/render_readme_art.py title
+  python3 tools/render_readme_art.py title [--fields <title.npz>] [--blender <title.npy>]
   python3 tools/render_readme_art.py hero <screenshot.png>
+
+The title can be path-traced: --fields dumps its heightfield and materials for tools/video/blender_panel_assets.py,
+and --blender takes that render (linear, h x w x 3) in place of the canvas's own shading, at the same exposure.
 """
 
 import os
@@ -50,7 +53,7 @@ def spaced(d, x, y, s, fnt, fill, spacing):
 
 
 # ------------------------------------------------------------------ title
-def title():
+def title(fields=None, blender=None):
     st = carbon()
     W, H = 1000, 220                          # pt (2x px)
     cap, stroke, gap = 40, 6.0, 15.5            # the device's wordmark proportions (TITLE: cap 11, stroke 2, gap 4.6), scaled
@@ -76,6 +79,18 @@ def title():
     ix, iy = int(round((wx - 3) * S)), int(round((wy - 3) * S))
     inlay[iy:iy + m.shape[0], ix:ix + m.shape[1]] = np.maximum(inlay[iy:iy + m.shape[0], ix:ix + m.shape[1]], m)
     rgb = c.shade(st)
+    if fields:                                    # for Blender: the same fields the panel assets use
+        np.savez_compressed(fields, hf=c.hf, alb=(c.alb * c.grain[..., None]).astype(np.float32), shin=c.shin, ks=c.ks,
+                            metal=c.metal, emis=c.emis)
+        print("wrote", fields)
+        return
+    if blender:                                   # the path-traced panel, matched to the canvas's tone on the flat panel
+        ren = np.load(blender)
+        lin = lambda v: np.where(v <= 0.04045, v / 12.92, ((v + 0.055) / 1.055) ** 2.4)
+        flat = (c.hf == 0) & (inlay == 0)
+        lum = lambda im: im[..., 0] * 0.3 + im[..., 1] * 0.59 + im[..., 2] * 0.11
+        ren = ren * float(np.median(lum(lin(rgb))[flat]) / np.median(lum(ren)[flat]))
+        rgb = np.where(ren <= 0.0031308, ren * 12.92, 1.055 * np.power(np.clip(ren, 0, 1), 1 / 2.4) - 0.055)
     # the panel's real tone: the studio lighting lifts the carbon too far for a banner; darken, with a vignette
     yy, xx = np.mgrid[0:H * S, 0:W * S].astype(np.float32)
     vig = 1.0 - 0.45 * np.clip(np.sqrt(((xx - W * S * 0.5) / (W * S * 0.75)) ** 2 + ((yy - H * S * 0.5) / (H * S * 0.9)) ** 2), 0, 1) ** 1.5
@@ -145,6 +160,8 @@ def hero(shot):
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     if sys.argv[1] == "title":
-        title()
+        a = sys.argv[2:]
+        title(fields=a[a.index("--fields") + 1] if "--fields" in a else None,
+              blender=a[a.index("--blender") + 1] if "--blender" in a else None)
     else:
         hero(sys.argv[2])
