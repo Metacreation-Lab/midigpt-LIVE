@@ -37,7 +37,13 @@ the bars you choose, and writes the result back as takes you can audition, rever
 
 ## Watch the full trailer
 
-The 1:40 tour of every feature: [full trailer](https://github.com/Metacreation-Lab/midigpt-LIVE/releases/latest).
+A 1:39 tour of every feature.
+
+<div class="embed"><iframe src="https://www.youtube-nocookie.com/embed/t7Ze_Log_5Q" title="MIDI-GPT for Live: trailer"
+allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>
+
+[Watch on YouTube](https://youtu.be/t7Ze_Log_5Q)
 
 MIDI-GPT for Live is made by the [Metacreation Lab for Creative AI](https://metacreation.net) at Simon Fraser
 University. Its companion is [MIDI-GPT for REAPER](https://github.com/Metacreation-Lab/midigpt-REAPER).
