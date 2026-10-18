@@ -9,3 +9,4 @@ midigpt.log
 __pycache__/
 /dist/
 /inspo/
+site/

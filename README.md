@@ -18,6 +18,8 @@
 - **Takes**: generate up to 16 versions at once, step through them in place, go back to the original, or keep one.
 - **Runs on your computer**: the model runs in a local server; nothing leaves your machine unless you point the device at a server elsewhere.
 
+**Documentation:** [daotwenty.github.io/midigpt-LIVE](https://daotwenty.github.io/midigpt-LIVE/): install, a tour of every control, workflows and troubleshooting.
+
 Companion project: [MIDI-GPT for REAPER](https://github.com/Metacreation-Lab/midigpt-REAPER).
 
 ## Table of Contents
