@@ -9,6 +9,7 @@
  * In (from midigpt.js outlet 6):
  *   panel_state <json>   tracks, parameters, server, generation, fault
  *   panel_notes <json>   per track, per bar: [[start, length, pitch] ...] (0-1)
+ *   either one can come in parts: "~part:<i>:<n>|<text>" (joinParts)
  *
  * Out: "panel <verb> <args...>" to midigpt.js, plus "url_edit <0|1>" for the
  * window patch (it shows the native address field over the Setup screen).
@@ -126,14 +127,31 @@ var errSeen = null;   // the fault the person has not cleared yet (cleared local
 
 var lastKey = null, notesVer = 0;
 function panel_state(json) {
+    json = joinParts("state", json);
+    if (json === null) return;
     try { S = JSON.parse(json); } catch (e) { post("midigpt_panel: bad state\n"); return; }
     if (S.err && (!errSeen || errSeen.id !== S.err.id)) errSeen = ext({ t: now() }, S.err);
     if (!S.err) errSeen = null;
     if (ui.setup.sel >= S.tracks.length) ui.setup.sel = Math.max(0, S.tracks.length - 1);
     refresh();
 }
-function panel_notes(json) { try { NOTESDATA = JSON.parse(json).tracks || []; } catch (e) {} notesVer++; if (inRegion("roll")) redraw(); }
-function page(name) { if (ui.page === name) return; ui.page = String(name); if (ui.page !== "setup") ui.editingUrl = false; redraw(); }
+function panel_notes(json) { json = joinParts("notes", json); if (json === null) return; try { NOTESDATA = JSON.parse(json).tracks || []; } catch (e) {} notesVer++; if (inRegion("roll")) redraw(); }
+// a long panel_state / panel_notes arrives in parts, "~part:<i>:<n>|<text>" (see panel_send in midigpt_panel_link.js);
+// returns the whole message once every part is in, else null
+var PARTS = {};
+function joinParts(kind, msg) {
+    msg = String(msg);
+    if (msg.substr(0, 6) !== "~part:") return msg;
+    var bar = msg.indexOf("|"), hd = msg.substring(6, bar).split(":"), i = +hd[0], n = +hd[1];
+    var p = PARTS[kind];
+    if (!p || p.n !== n || i === 0) p = PARTS[kind] = { n: n, got: 0, s: [] };
+    if (p.s[i] === undefined) p.got++;
+    p.s[i] = msg.substr(bar + 1);
+    if (p.got < n) return null;
+    delete PARTS[kind];
+    return p.s.join("");
+}
+function page(name) { if (ui.page === name) return; ui.page = String(name); if (ui.page !== "setup") ui.editingUrl = false; if (ui.page !== "main") ui.seedEditing = false; redraw(); }
 // what this region draws, as a string: repaint when it changes
 function regionKey() {
     var c = cur(), base = ui.page + "|";
@@ -286,7 +304,6 @@ var KNOBS = {
     "TOP-K": ext(lin(smp, "topk", 0, 500, 5, function (v) { send("sample", "topk", v); }), { fmt: function () { return S.sample.topk ? String(S.sample.topk) : "OFF"; }, def: 0 }),
     "ESC": ext(lin(smp, "esc", 1, 3, 0.05, function (v) { send("sample", "esc", v); }), { fmt: function () { return S.sample.esc.toFixed(2); }, def: 1 }),
     "TAKES": ext(lin(smp, "takes", 1, 16, 1, function (v) { send("sample", "takes", v); }), { fmt: function () { return String(S.sample.takes); }, def: 1 }),
-    "SEED": ext(lin(smp, "seed", 0, 999, 1, function (v) { send("sample", "seed", v); }), { fmt: function () { return S.sample.seed ? String(S.sample.seed) : "RND"; }, def: 0 }),
     // ENGINE
     "CONTEXT": {
         v: function () { var d = S.engine.dims; return d.length > 1 ? Math.max(0, d.indexOf(S.engine.context)) / (d.length - 1) : 0.5; },
@@ -403,6 +420,72 @@ function drawKey(x, y, w, h, label, lit, onClick, opts) {
     g.globalAlpha = 1;
     if (!opts.dim && onClick) hit("key", x, y, w, h, { fn: onClick, x: x, y: y });
 }
+// ------------------------------------------------------------------ seed
+// A seed names a result, not a quantity: a readout and two keys instead of a knob.
+//   DICE  rolls a new fixed seed
+//   LOCK  lit: back to a random seed each run. Off: keep the seed you just heard (the selected take's in a batch,
+//         else the last generation's)
+//   the readout: click to type a seed (a native textedit, seed_text, opened by "seed_edit 1"); empty = random
+function seedNow() { return S.sample.seed > 0 ? S.sample.seed : 0; }
+function seedHeard() {            // [seed, where it came from] of the result on screen, or null
+    var G = S.gen;
+    if (!G.seed) return null;
+    if (G.takes.length > 1 && G.cur >= 0) return [G.seed + G.cur, "TAKE " + (G.cur + 1)];
+    return [G.seed, "LAST RUN"];
+}
+function seedRoll() { return 1 + Math.floor(Math.random() * 2147483646); }
+function seedKey(x, y, w, h, label, lit, onClick, enabled) {
+    var down = ui.press && ui.press.x === x && ui.press.y === y;
+    g.save();
+    if (enabled === false) g.globalAlpha = 0.4;
+    g.fillStyle = "#1A1A1A"; round(x, y + (down ? 0.6 : 0), w, h, 2.5); g.fill();
+    g.strokeStyle = "rgba(255,255,255,0.07)"; g.lineWidth = 0.8; round(x + 0.4, y + 0.4 + (down ? 0.6 : 0), w - 0.8, h - 0.8, 2.2); g.stroke();
+    if (lit) ledStroke(function () { round(x + w / 2 - 5, y + 2.6 + (down ? 0.6 : 0), 10, 1.6, 0.8); }, 1.2, true);
+    else { g.fillStyle = T.keyLedOff; round(x + w / 2 - 5, y + 2.6, 10, 1.6, 0.8); g.fill(); }
+    txt(x + w / 2, y + h / 2 + 2 + (down ? 0.6 : 0), label, 5.8, lit ? T.keyLit : T.keyText, "center", 0.9);
+    g.restore();
+    if (enabled !== false && onClick) hit("key", x, y, w, h, { fn: onClick, x: x, y: y });
+}
+var SEED_W = 76, SEED_H = 20;
+function seedRect(cx, cy) { return [cx - SEED_W / 2, cy - 17, SEED_W, SEED_H]; }
+function drawSeed(cx, cy) {
+    var r = seedRect(cx, cy), x = r[0], sy = r[1], w = r[2], seed = seedNow(), heard = seedHeard();
+    // a screen sits in a little dip, like the stats screen: a darker rim, shadow at the top, light at the bottom
+    g.fillStyle = "#1B1B1B"; round(x - 2.6, sy - 2.6, w + 5.2, SEED_H + 5.2, 5); g.fill();
+    g.strokeStyle = "rgba(0,0,0,0.6)"; g.lineWidth = 1; round(x - 2.2, sy - 2.4, w + 4.4, SEED_H + 4.2, 4.6); g.stroke();
+    g.strokeStyle = "rgba(255,255,255,0.05)"; g.lineWidth = 0.8; round(x - 2.6, sy - 2.0, w + 5.2, SEED_H + 5.0, 5); g.stroke();
+    g.fillStyle = T.screenBg; round(x, sy, w, SEED_H, 3); g.fill();
+    if (ui.seedEditing) {                             // the native field draws the text; outline the readout
+        g.strokeStyle = ACC; g.lineWidth = 1; round(x + 0.5, sy + 0.5, w - 1, SEED_H - 1, 2.6); g.stroke();
+        txt(x + 4, sy + 5.5, "1 – 2147483647", 4.6, rgba(HUD.g, 0.6), "left", 0.6);
+    } else {
+        g.strokeStyle = "rgba(255,255,255,0.06)"; g.lineWidth = 0.8; round(x + 0.4, sy + 0.4, w - 0.8, SEED_H - 0.8, 2.6); g.stroke();
+        var main = seed ? String(seed) : "RANDOM";
+        txt(x + 4, sy + 5.5, seed ? (ui.seedOrigin || "FIXED") : "CLICK TO TYPE", 4.6, rgba(HUD.g, 0.55), "left", 0.6);
+        txt(x + w / 2, sy + SEED_H / 2 + 2.2, main, fitSize(main, 7.2, 0.4, w - 8), seed ? HUD.c : rgba(HUD.g, 0.75), "center", 0.4);
+    }
+    hit("key", x, sy, w, SEED_H, { fn: function () { ui.seedEditing = true; ui.seedBuf = ""; outlet(0, "seed_edit", 1); redraw(); }, x: x, y: sy });
+    seedKey(x, sy + 24, 36, 13, "DICE", false, function () { ui.seedOrigin = "DICE"; send("sample", "seed", seedRoll()); });
+    seedKey(x + 40, sy + 24, 36, 13, "LOCK", !!seed, function () {
+        if (seed) { ui.seedOrigin = null; send("sample", "seed", 0); }
+        else if (heard) { ui.seedOrigin = heard[1]; send("sample", "seed", heard[0]); }
+    }, !!seed || !!heard);
+    txt(cx, cy + 29.5, "SEED", 6.8, LAB, "center", 1);
+}
+function seed_done(typed) { ui.seedEditing = false; ui.seedBuf = ""; if (typed) ui.seedOrigin = "TYPED"; redraw(); }
+// every key typed in the seed field (its ASCII code): keep digits only, never above the largest seed, and write the
+// clean entry back into the field (the patch defers it, so it lands after the field has inserted the key)
+var SEED_MAX = 2147483647;
+function seed_key(k) {
+    if (!ui.seedEditing) return;
+    var b = ui.seedBuf || "";
+    if (k >= 48 && k <= 57) { var nb = (b === "0" ? "" : b) + String.fromCharCode(k); if (+nb <= SEED_MAX) b = nb; }
+    else if (k === 8 || k === 127) b = b.slice(0, -1);
+    else if (k === 13 || k === 3) return;            // Enter: the field sends its text
+    ui.seedBuf = b;
+    outlet(0, "seed_set", b);
+}
+
 function bayTitle(x, y, w, title, sub) {
     txt(x + 14, y + 14, title, 7.5, T.title, "left", 1.6);
     if (sub) txt(x + w - 14, y + 14, sub, 6.6, INK, "right", 1.2);
@@ -527,7 +610,8 @@ function hudStats(x, y, w, h) {
     for (var r = 0; r < rows.length; r++) {
         var cx = x + 8 + (r % 3) * cw, cy = y + 17 + (h - 17) * (Math.floor(r / 3) + 1) / 3;
         txt(cx, cy, rows[r][0], 5.8, rgba(rows[r][2], 0.6), "left", 0.6);
-        txt(cx + cw - 6, cy, rows[r][1], 7.5, rows[r][2], "right", 0.4);
+        g.save(); g.font = "700 5.8px"; g.letterSpacing = "0.6px"; var lw = g.measureText(rows[r][0]).width; g.restore();
+        txt(cx + cw - 6, cy, rows[r][1], fitSize(rows[r][1], 7.5, 0.4, cw - 6 - lw - 5), rows[r][2], "right", 0.4);   // never over its label
     }
 }
 // Avionics-style fault: a reverse-video tag (FAULT red / CAUTION amber / NOT SENT) and a short code, then the cause and
@@ -770,7 +854,7 @@ function paintMain(sp) {
         bayTitle(b[0], b[1], b[2], b[4], sub);
     }
     var tk = ui.page === "main" ? trackLayout() : null;
-    for (i = 0; i < page.knobs.length; i++) { var k = page.knobs[i]; if (!(tk && TRACK_KNOBS[k[0]])) drawKnob(KNOBS[k[0]], k[0], k[1], k[2], k[3]); }
+    for (i = 0; i < page.knobs.length; i++) { var k = page.knobs[i]; if (k[0] === "SEED") { drawSeed(k[1], k[2]); continue; } if (!(tk && TRACK_KNOBS[k[0]])) drawKnob(KNOBS[k[0]], k[0], k[1], k[2], k[3]); }
     if (tk && c) for (i = 0; i < tk.length; i++) drawKnob(KNOBS[tk[i][0]], tk[i][0], tk[i][1], tk[i][2], tk[i][3]);
     for (i = 0; i < page.toggles.length; i++) { var tg = page.toggles[i]; if (TOGGLES[tg[0]]) drawToggle(TOGGLES[tg[0]], tg[0], tg[1], tg[2], tg[3], tg[4]); }
     for (i = 0; i < page.keys.length; i++) setupKey(page.keys[i]);

@@ -662,12 +662,106 @@ function init_live_api(attempt){
 // check completes (success or failure) rather than using a fixed
 // interval, so a slow/timed-out check can't stack up overlapping polls.
 var HEALTH_POLL_MS = 15000;
+var health_task = null;
 
 function schedule_health_poll(){
-    var pollTask = new Task(function(){
+    if (device_deleted) return;
+    if (!health_task) health_task = new Task(function(){
         http_health(function(){ schedule_health_poll(); });
     }, this);
-    pollTask.schedule(HEALTH_POLL_MS);
+    health_task.schedule(HEALTH_POLL_MS);
+}
+
+// HTTP goes through the Node helper, not Max's XMLHttpRequest: a reply that
+// arrives after the device is deleted (closing or switching sets, removing the
+// device) is delivered by Max's XMLHttpRequest to the freed js object and
+// crashes Live, even after abort(). A reply from node.script to a deleted
+// device is simply dropped.
+//
+// NodeRequest has the part of the XMLHttpRequest interface used here. Bodies
+// and replies travel in chunks, each prefixed with "|" so Max never turns a
+// chunk that looks like a number into one.
+var HTTP_CHUNK = 4000;
+var http_seq = 0;
+var http_pending = {};      // id -> NodeRequest
+var node_ready = false;     // set by the helper's config_ready
+var node_queue = [];        // messages for the helper sent before it was running
+var device_deleted = false;
+
+function to_node(msg){
+    if (node_ready) outlet(OUT_NODE, msg);
+    else node_queue.push(msg);
+}
+
+function node_started(){
+    if (!node_ready) flog("node helper ready, " + node_queue.length + " queued message(s)");
+    node_ready = true;
+    var q = node_queue;
+    node_queue = [];
+    for (var i = 0; i < q.length; i++) outlet(OUT_NODE, q[i]);
+}
+
+function NodeRequest(){
+    this.readyState = 0;
+    this.status = 0;
+    this.responseText = "";
+    this.timeout = 0;
+    this.onreadystatechange = null;
+    this.ontimeout = null;
+    this._method = "GET";
+    this._url = "";
+    this._id = null;
+    this._chunks = [];
+}
+NodeRequest.prototype.open = function(method, url){ this._method = method; this._url = url; this.readyState = 1; };
+NodeRequest.prototype.setRequestHeader = function(){};   // the helper sends bodies as application/json
+NodeRequest.prototype.send = function(body){
+    var id = "h" + (++http_seq);
+    this._id = id;
+    http_pending[id] = this;
+    body = body ? String(body) : "";
+    var n = Math.ceil(body.length / HTTP_CHUNK);
+    for (var i = 0; i < n; i++) to_node(["http_body", id, i, "|" + body.substr(i * HTTP_CHUNK, HTTP_CHUNK)]);
+    to_node(["http_send", id, this._method, this._url, this.timeout || 0, n]);
+};
+NodeRequest.prototype.abort = function(){
+    if (!this._id || !http_pending[this._id]) return;
+    delete http_pending[this._id];
+    to_node(["http_abort", this._id]);
+};
+
+function new_request(){ return new NodeRequest(); }
+
+// http_chunk <id> <i> <|text>, then http_done <id> <status> <chunks>, or http_timeout <id>;
+// a streamed reply also sends http_event <id> <|json> per progress frame
+function handle_http(a){
+    var req = http_pending[a[1]];
+    if (!req) return;
+    if (a[0] == "http_chunk") { req._chunks[+a[2]] = String(a[3]).substr(1); return; }
+    if (a[0] == "http_event") {
+        if (req.onevent) { try { req.onevent(JSON.parse(String(a[2]).substr(1))); } catch (e) { flog("http_event: " + e); } }
+        return;
+    }
+    delete http_pending[a[1]];
+    req.readyState = 4;
+    if (a[0] == "http_timeout") {
+        if (req.ontimeout) req.ontimeout();
+        else if (req.onreadystatechange) req.onreadystatechange();
+        return;
+    }
+    req.status = +a[2];
+    req.responseText = req._chunks.slice(0, +a[3]).join("");
+    req._chunks = [];
+    if (req.onreadystatechange) req.onreadystatechange();
+}
+
+// Called by Max when the js object is deleted: stop the timers that would
+// otherwise call back into it.
+function notifydeleted(){
+    device_deleted = true;
+    var tasks = [health_task, _log_flush_task, tag_task, dict_sync_task, status_revert_task, panel_task, tag_change_task];
+    for (var i = 0; i < tasks.length; i++) if (tasks[i]) tasks[i].cancel();
+    http_pending = {};
 }
 
 // Entry point, sent once by live.thisdevice -> deferlow -> "init" when the
@@ -694,6 +788,7 @@ function init(){
     resolve_paths(this.patcher);
     flog("init: ROOT=" + ROOT + " dev=" + DEV_MODE);
     schedule_panel();
+    outlet(OUT_NODE, "hello");   // the helper answers with config_ready (it may have started before this script)
     init_live_api();
     http_info();
     http_models();
@@ -709,7 +804,7 @@ var server_latency_ms = -1;
 
 function http_health(on_done){
     flog("http_health: GET " + SERVER_URL + "/health");
-    var req = new XMLHttpRequest();
+    var req = new_request();
     var t0 = Date.now();
     req.open("GET", SERVER_URL + "/health", true);
     req.timeout = 10000;
@@ -728,7 +823,7 @@ function http_health(on_done){
 
 function http_info(on_done){
     flog("http_info: GET " + SERVER_URL + "/info");
-    var req = new XMLHttpRequest();
+    var req = new_request();
     req.open("GET", SERVER_URL + "/info", true);
     req.timeout = 10000;
     req.ontimeout = function(){ flog("http_info: TIMEOUT"); server_online = false; schedule_panel(); on_done && on_done(false); };
@@ -769,7 +864,7 @@ var server_default_model = "";
 
 function http_models(on_done){
     flog("http_models: GET " + SERVER_URL + "/models");
-    var req = new XMLHttpRequest();
+    var req = new_request();
     req.open("GET", SERVER_URL + "/models", true);
     req.timeout = 10000;
     req.ontimeout = function(){ flog("http_models: TIMEOUT"); on_done && on_done(false); };
@@ -913,7 +1008,7 @@ function capture_write_ctx(){
 
 function http_generate(){
     var request_id = make_request_id();
-    var req = new XMLHttpRequest();
+    var req = new_request();
     active_generation = { request_id: request_id, started_at: Date.now(), cancel_sent: false, xhr: req };
 
     report_status("generating");
@@ -926,6 +1021,7 @@ function http_generate(){
         panel_fault("NO REPLY", "SERVER DID NOT ANSWER", "RETRY \u00b7 CHECK SERVER");
         report_error("Request timed out.");
     };
+    req.onevent = panel_generation_progress;   // streamed: new notes and token progress while it runs
     req.onreadystatechange = function(){
         if (req.readyState === 4) {
             if (req.status === 200) {
@@ -951,11 +1047,12 @@ function http_generate(){
     // /openapi.json schema (_GenerateBody.model) -- NOT inside
     // request.config. Omitted entirely when unset so the server just
     // uses its own default_model.
+    // A single generation streams (progress for the stats screen); the server streams only one candidate.
     var body = {
         score: midigptScore,
         request: midigptRequest,
         request_id: request_id,
-        stream: false
+        stream: (midigptRequest.config.num_candidates || 1) <= 1
     };
     if (global_params.model) body.model = global_params.model;
     // Full outgoing body, verbatim -- paired with the RESPONSE line above
@@ -1004,7 +1101,7 @@ function http_cancel(){
     flog("http_cancel: POST " + SERVER_URL + "/generate/" + request_id + "/cancel");
     report_status("cancelling");
 
-    var req = new XMLHttpRequest();
+    var req = new_request();
     req.open("POST", SERVER_URL + "/generate/" + request_id + "/cancel", true);
     req.timeout = 10000;
     req.setRequestHeader("Content-Type", "application/json");
@@ -1412,7 +1509,8 @@ function handle_message(a){
         http_models();
     }
     else if (a[0] == "tag_changed") panel_tag_changed();
-    else if (a[0] == "config" || a[0] == "config_ready") handle_config(a);
+    else if (a[0] == "http_chunk" || a[0] == "http_event" || a[0] == "http_done" || a[0] == "http_timeout") handle_http(a);
+    else if (a[0] == "config" || a[0] == "config_ready") { if (a[0] == "config_ready") node_started(); handle_config(a); }
     else if (a[0] == "node_error") report_error("MIDI-GPT helper: " + a.slice(1).join(" "));
     else if (a[0] == "refresh") refresh_params_structure();
     else if (a[0] == "cancel") http_cancel();

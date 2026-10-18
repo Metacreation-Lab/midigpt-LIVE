@@ -152,9 +152,19 @@ function push_panel(){
         tagging: tag_queue.length
     };
     var json = JSON.stringify(st);
-    if (json !== panel_last.state) { panel_last.state = json; outlet(OUT_PANEL, "panel_state", json); }
+    if (json !== panel_last.state) { panel_last.state = json; panel_send("panel_state", json); }
     var nj = JSON.stringify({ scene: current_scene, tracks: sc.notes });
-    if (nj !== panel_last.notes) { panel_last.notes = nj; outlet(OUT_PANEL, "panel_notes", nj); }
+    if (nj !== panel_last.notes) { panel_last.notes = nj; panel_send("panel_notes", nj); }
+}
+
+// A Max message argument holds at most ~32k characters: a dense scene's notes are longer, and the
+// panel got a cut-off string it could not parse (an empty or stale roll). A long message goes in
+// parts under its own name, each "~part:<i>:<n>|<text>" (the patch routes only these two names).
+var PANEL_PART = 16000;
+function panel_send(kind, json){
+    if (json.length <= PANEL_PART) { outlet(OUT_PANEL, kind, json); return; }
+    var n = Math.ceil(json.length / PANEL_PART);
+    for (var i = 0; i < n; i++) outlet(OUT_PANEL, kind, "~part:" + i + ":" + n + "|" + json.substr(i * PANEL_PART, PANEL_PART));
 }
 
 function panel_gen_state(){
@@ -216,6 +226,18 @@ function panel_fault_http(status, text){
     return panel_fault("ERROR " + status, trim_cause(detail), "SEE LOG");
 }
 
+// a streamed generation's progress frame ({ n: new notes, progress: { generated_tokens, model_forward_s,
+// context_tokens, max_context_tokens, attempt } }): live notes, tokens/s, context and the retry attempt
+function panel_generation_progress(ev){
+    var p = ev.progress || {};
+    if (p.attempt && p.attempt !== panel_gen.att) { panel_gen.att = +p.attempt; panel_gen.notes = 0; }   // a retry starts over
+    panel_gen.notes += +ev.n || 0;
+    if (p.generated_tokens && p.model_forward_s) panel_gen.tps = p.generated_tokens / p.model_forward_s;
+    if (p.context_tokens) panel_gen.ctx = +p.context_tokens + (+p.generated_tokens || 0);
+    if (p.max_context_tokens) panel_gen.maxctx = +p.max_context_tokens;
+    schedule_panel();
+}
+
 // a finished generation: stats, and a caution when takes were dropped or cut short
 function panel_generation_done(result){
     panel_gen.elapsed = active_generation ? (Date.now() - active_generation.started_at) / 1000 : 0;
@@ -226,7 +248,6 @@ function panel_generation_done(result){
         for (i = 0; i < cands.length; i++) if (cands[i].score) { first = cands[i]; break; }
         if (first) written = count_target_notes(first.score);
         panel_gen.seed = result.base_seed || (first && first.seed) || 0;
-        panel_gen.att = first && first.gen_count ? first.gen_count : 0;
     } else if (result.score) {
         written = count_target_notes(result.score);
         panel_gen.seed = result.seed || 0;
@@ -234,10 +255,11 @@ function panel_generation_done(result){
     }
     panel_gen.notes = written;
     var tok = result.tokens || {}, tim = result.timing || {};
-    var gen = +(tok.generated || tok.generated_tokens || tok.total || 0), secs = +(tim.generate_s || tim.total_s || tim.total || 0);
-    panel_gen.tps = gen && secs ? gen / secs : 0;
-    panel_gen.ctx = +(tok.context || tok.prompt || tok.input || 0);
-    panel_gen.maxctx = +(tok.max_context || tok.context_limit || 0);
+    var gen = +(tok.generated_tokens || tim.gen_count || 0), secs = +(tim.model_forward_s || 0);
+    panel_gen.tps = +tok.tokens_per_second || (gen && secs ? gen / secs : 0);
+    panel_gen.ctx = +(tok.context_tokens || 0) + gen;          // the model's window: the prompt plus what it generated
+    panel_gen.maxctx = +(tok.max_context_tokens || 0);
+    if (result.attempts) panel_gen.att = +result.attempts;   // servers before the attempts field leave it as it was
     if (failed && ok) panel_fault("TAKES LOST", failed + " OF " + (ok + failed) + " TAKES FAILED CHECKS", ok + " TAKES READY", { warn: 1, noReport: true });
     else if (trunc) panel_fault("CTX LIMIT", "TAKES MAY BE CUT SHORT", "LOWER CONTEXT OR BARS", { warn: 1, noReport: true });
     panel_invalidate_scene();
@@ -345,6 +367,12 @@ function panel_message(a){
             else if (sk === "esc") { set_global_param("temperature_escalation", sv); set_global_param("temp_esc_auto", sv <= 1); }
             else if (sk === "takes") set_global_param("num_candidates", Math.round(sv));
             else if (sk === "seed") { set_global_param("seed_auto", sv <= 0); set_global_param("seed", sv > 0 ? Math.round(sv) : -1); }
+            break;
+        case "seed_text":   // typed in the seed field: empty or 0 = random, a whole number 1..2147483647 = that seed, else ignored
+            var stx = a.slice(2).join(" ").replace(/\s+/g, "");
+            if (stx === "" || stx === "bang" || stx === "0") { set_global_param("seed_auto", true); set_global_param("seed", -1); }
+            else if (/^\d+$/.test(stx) && +stx >= 1 && +stx <= 2147483647) { set_global_param("seed_auto", false); set_global_param("seed", +stx); }
+            else flog("panel_message: seed_text ignored: " + stx);
             break;
         case "engine":
             if (a[2] === "mask_p") set_global_param("mask_p", +a[3]);

@@ -120,6 +120,11 @@ def find(name, dirs):
     return None
 
 
+# require()s in a node.script that Node resolves itself (Node for Max's max-api and Node's built-ins)
+NODE_MODULES = {"max-api", "assert", "buffer", "child_process", "crypto", "dns", "events", "fs", "http", "https",
+                "net", "os", "path", "querystring", "stream", "string_decoder", "timers", "tls", "url", "util", "zlib"}
+
+
 def collect(patcher, dirs, extra=(), use_cache=True):
     """Every file the device needs, following include()/require()/Image() inside scripts. -> {name: path}
     use_cache also takes the names in the device's dependency_cache (what Max last saw it use)."""
@@ -139,7 +144,7 @@ def collect(patcher, dirs, extra=(), use_cache=True):
         if name.endswith(".js"):
             for m in JS_REFS.finditer(open(path, encoding="utf-8", errors="replace").read()):
                 ref = m.group(1) or m.group(2)
-                if ref != "max-api" and not ref.startswith(("child_process", "fs", "os", "path")):
+                if ref.split("/")[0].replace("node:", "") not in NODE_MODULES:
                     want.append(with_ext(ref) if m.group(1) else ref)
             # js/jsui Image() names built at runtime ("midigpt_" + name + ".png") cannot be followed:
             # the caller passes those (all of a media folder) in `extra`

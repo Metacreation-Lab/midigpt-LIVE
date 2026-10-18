@@ -10,7 +10,8 @@ midigpt.js outlets: 0 -> the window (panel_state <json> / panel_notes <json>),
 1 -> the dev bridge's udpsend, 2 -> the node.script helper. The panel's
 "panel ..." messages go straight back to midigpt.js; "url_edit" / "url_text"
 show the native address field (a textedit, varname setup_url) over the Setup
-screen, and Enter in it sends server_url.
+screen, and Enter in it sends server_url. "seed_edit" opens the seed field
+(seed_text) over the seed readout; Enter in it sends "panel seed_text <text>".
 
 Usage: python3 tools/build_device.py
 """
@@ -36,6 +37,7 @@ JS_OUTLETS = {6: 0, 8: 1, 9: 2}   # the old 10-outlet layout -> panel, bridge, n
 LEGACY_TOP = ("obj-32", "obj-25", "obj-27", "obj-20", "obj-23", "obj-7", "obj-17", "obj-19")
 WINDOW_INLETS = ("obj-2", "obj-4")   # 0: pcontrol (open), 1: panel state
 URL_RECT = [54, 298, 284, 16]
+SEED_RECT = [602, 403, 72, 11]      # the seed readout on the main page (midigpt_panel.js seedRect: 598, 395, 76 x 20)
 PAGES = ("main", "engine", "setup")
 REGIONS = [("top", [788, 2, 168, 34]), ("roll", [4, 36, 952, 220]), ("main", [4, 256, 684, 264]),   # midigpt_panel.js REGIONS
            ("output", [688, 256, 268, 264]), ("masks", [4, 520, 952, 118])]   # the Setup page's server screen (32, 292, 320, 28), inside its readout
@@ -66,6 +68,13 @@ def build_window(old):
                           "fontname": "Ableton Sans Bold", "fontsize": 7.5,
                           "textcolor": [0.784, 0.784, 0.784, 1.0], "bgcolor": [0.02, 0.02, 0.02, 1.0],
                           "bordercolor": [0.02, 0.02, 0.02, 1.0], "border": 0}})
+    boxes.append({"box": {"id": "obj-p-seed", "maxclass": "textedit", "varname": "seed_text", "keymode": 1, "outputmode": 1,
+                          "numinlets": 1, "numoutlets": 4, "outlettype": ["", "int", "", ""], "parameter_enable": 0,
+                          "hidden": 1, "presentation": 1, "presentation_rect": SEED_RECT,
+                          "patching_rect": [40, 700, 120, 16], "text": "", "textjustification": 1,
+                          "fontname": "Ableton Sans Bold", "fontsize": 7.2,
+                          "textcolor": [1.0, 1.0, 1.0, 1.0], "bgcolor": [0.0, 0.0, 0.0, 0.0],      # see-through: the panel draws the frame and hint
+                          "bordercolor": [0.0, 0.0, 0.0, 0.0], "border": 0}})
     ids = []
     for i, (region, rect) in enumerate(REGIONS):
         bid = "obj-p-" + region
@@ -90,7 +99,7 @@ def build_window(old):
         lines += [line("obj-p-pre-s", 0, bid, 0), line("obj-p-pre-n", 0, bid, 0)]
 
     # regions -> midigpt.js, except the address field, the page switch and the background picture
-    boxes.append(newobj("obj-p-out", "route url_edit url_text page bg", (40, 480), 1, 5, w=220))
+    boxes.append(newobj("obj-p-out", "route url_edit url_text page bg seed_edit seed_set", (40, 480), 1, 7, w=300))
     boxes.append(newobj("obj-p-page", "prepend page", (260, 440), 1, 1, w=90))
     # page -> show that page's background, hide the others
     boxes.append(newobj("obj-p-bgsel", "sel " + " ".join(PAGES), (360, 400), 1, len(PAGES) + 1, w=160))
@@ -112,7 +121,7 @@ def build_window(old):
     lines += [line("obj-p-out", 0, "obj-p-sel", 0), line("obj-p-sel", 0, "obj-p-hide", 0), line("obj-p-sel", 1, "obj-p-show", 0),
               line("obj-p-hide", 0, "obj-p-thispatcher", 0), line("obj-p-show", 0, "obj-p-thispatcher", 0),
               line("obj-p-out", 1, "obj-p-settext", 0), line("obj-p-settext", 0, "obj-p-url", 0),
-              line("obj-p-out", 4, "obj-1", 0)]
+              line("obj-p-out", 6, "obj-1", 0)]
 
     # Enter in the address field: server_url to midigpt.js, then hide the field and tell the panel
     boxes += [newobj("obj-p-url-route", "route text", (340, 520), 1, 2, w=70),
@@ -123,6 +132,31 @@ def build_window(old):
               line("obj-p-url-t", 1, "obj-p-url-prep", 0), line("obj-p-url-prep", 0, "obj-1", 0),
               line("obj-p-url-t", 0, "obj-p-url-done", 0), line("obj-p-url-done", 0, "obj-p-main", 0),
               line("obj-p-url-t", 0, "obj-p-hide", 0)]
+
+    # the seed readout: "seed_edit 1" (a click on it) opens an empty field, Enter sends "panel seed_text <text>"
+    # (empty = random) to midigpt.js, closes the field and tells the panel; a page switch closes it too
+    boxes += [newobj("obj-p-seed-sel", "sel 0 1", (40, 740), 1, 3, w=60),
+              msg("obj-p-seed-hide", "script hide seed_text", (40, 780), 140),
+              msg("obj-p-seed-show", "script sendbox seed_text set, script show seed_text, script sendbox seed_text select", (190, 780), 420),
+              newobj("obj-p-seed-route", "route text", (340, 700), 1, 2, w=70),
+              newobj("obj-p-seed-t", "t b l", (340, 730), 1, 2, w=50),
+              newobj("obj-p-seed-prep", "prepend panel seed_text", (400, 760), 1, 1, w=150),
+              msg("obj-p-seed-done", "seed_done 1", (340, 760), 80)]
+    lines += [line("obj-p-out", 4, "obj-p-seed-sel", 0), line("obj-p-seed-sel", 0, "obj-p-seed-hide", 0), line("obj-p-seed-sel", 1, "obj-p-seed-show", 0),
+              line("obj-p-seed-hide", 0, "obj-p-thispatcher", 0), line("obj-p-seed-show", 0, "obj-p-thispatcher", 0),
+              line("obj-p-out", 2, "obj-p-seed-hide", 0),
+              line("obj-p-seed", 0, "obj-p-seed-route", 0), line("obj-p-seed-route", 0, "obj-p-seed-t", 0), line("obj-p-seed-route", 1, "obj-p-seed-t", 0),
+              line("obj-p-seed-t", 1, "obj-p-seed-prep", 0), line("obj-p-seed-prep", 0, "obj-1", 0),
+              line("obj-p-seed-t", 0, "obj-p-seed-done", 0), line("obj-p-seed-done", 0, "obj-p-main", 0),
+              line("obj-p-seed-t", 0, "obj-p-seed-hide", 0)]
+    # digits only: every key typed goes to the panel (seed_key), which sends back the clean entry (seed_set), set
+    # into the field after the key has landed (deferlow)
+    boxes += [newobj("obj-p-seed-key", "prepend seed_key", (180, 700), 1, 1, w=110),
+              newobj("obj-p-seed-defer", "deferlow", (40, 820), 1, 1, w=60),
+              newobj("obj-p-seed-set", "prepend set", (110, 820), 1, 1, w=80)]
+    lines += [line("obj-p-seed", 1, "obj-p-seed-key", 0), line("obj-p-seed-key", 0, "obj-p-main", 0),
+              line("obj-p-out", 5, "obj-p-seed-defer", 0), line("obj-p-seed-defer", 0, "obj-p-seed-set", 0),
+              line("obj-p-seed-set", 0, "obj-p-seed", 0)]
 
     # once the window exists: size it, and ask midigpt.js for the state
     boxes += [newobj("obj-p-lb", "loadbang", (700, 40), 1, 1, w=60),
