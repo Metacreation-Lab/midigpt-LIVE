@@ -11,3 +11,4 @@ __pycache__/
 /inspo/
 site/
 midigpt_requests/
+.prism/
