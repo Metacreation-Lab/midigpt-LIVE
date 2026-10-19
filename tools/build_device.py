@@ -38,7 +38,6 @@ LEGACY_TOP = ("obj-32", "obj-25", "obj-27", "obj-20", "obj-23", "obj-7", "obj-17
 WINDOW_INLETS = ("obj-2", "obj-4")   # 0: pcontrol (open), 1: panel state
 URL_RECT = [54, 298, 284, 16]
 SEED_RECT = [602, 403, 72, 11]      # the seed readout on the main page (midigpt_panel.js seedRect: 598, 395, 76 x 20)
-PAGES = ("main", "engine", "setup")
 REGIONS = [("top", [788, 2, 168, 34]), ("roll", [4, 36, 952, 220]), ("main", [4, 256, 684, 264]),   # midigpt_panel.js REGIONS
            ("output", [688, 256, 268, 264]), ("masks", [4, 520, 952, 118])]   # the Setup page's server screen (32, 292, 320, 28), inside its readout
 
@@ -82,32 +81,27 @@ def build_window(old):
         boxes.append({"box": {"id": bid, "maxclass": "jsui", "filename": "midigpt_panel.js", "jsarguments": [region], "varname": "panel_" + region,
                               "numinlets": 1, "numoutlets": 1, "outlettype": [""], "parameter_enable": 0, "border": 0,
                               "presentation": 1, "presentation_rect": rect, "patching_rect": [40 + i * 130, 300, 120, 90]}})
-    # the page backgrounds: native pictures, all loaded, one shown (the regions only draw what changes)
-    for j, pg in enumerate(PAGES):
-        b = {"id": "obj-p-bg-" + pg, "maxclass": "fpic", "pic": "midigpt_bg_%s.png" % pg, "autofit": 1, "numinlets": 1, "numoutlets": 1,
-             "varname": "bg_" + pg, "outlettype": ["jit_matrix"], "presentation": 1, "presentation_rect": [0, 0, 960, 640],
-             "patching_rect": [700 + j * 110, 300, 96, 64], "ignoreclick": 1}
-        if pg != "main":
-            b["hidden"] = 1
-        boxes.append({"box": b})
+    # the page background: one native picture, switched by name when the panel changes page ("bg <page>"); three
+    # loaded at once held ~30 MB of decoded pixels per device, and a picture per layout couldn't show ENGINE's second
+    boxes.append({"box": {"id": "obj-p-bgpic", "maxclass": "fpic", "pic": "midigpt_bg_main.png", "autofit": 1, "numinlets": 1,
+                          "numoutlets": 1, "varname": "bg_page", "outlettype": ["jit_matrix"], "presentation": 1,
+                          "presentation_rect": [0, 0, 960, 640], "patching_rect": [700, 300, 96, 64], "ignoreclick": 1}})
 
     # midigpt.js outlet 6 -> every region
     boxes.append(newobj("obj-p-route", "route panel_state panel_notes", (40, 120), 1, 3, w=200))
     boxes += [newobj("obj-p-pre-s", "prepend panel_state", (40, 160), 1, 1), newobj("obj-p-pre-n", "prepend panel_notes", (180, 160), 1, 1)]
     lines += [line("obj-4", 0, "obj-p-route", 0), line("obj-p-route", 0, "obj-p-pre-s", 0), line("obj-p-route", 1, "obj-p-pre-n", 0)]
     for bid in ids:
-        lines += [line("obj-p-pre-s", 0, bid, 0), line("obj-p-pre-n", 0, bid, 0)]
+        lines.append(line("obj-p-pre-s", 0, bid, 0))
+    lines.append(line("obj-p-pre-n", 0, "obj-p-roll", 0))     # only the roll draws notes
 
     # regions -> midigpt.js, except the address field, the page switch and the background picture
     boxes.append(newobj("obj-p-out", "route url_edit url_text page bg seed_edit seed_set", (40, 480), 1, 7, w=300))
     boxes.append(newobj("obj-p-page", "prepend page", (260, 440), 1, 1, w=90))
-    # page -> show that page's background, hide the others
-    boxes.append(newobj("obj-p-bgsel", "sel " + " ".join(PAGES), (360, 400), 1, len(PAGES) + 1, w=160))
-    lines.append(line("obj-p-out", 2, "obj-p-bgsel", 0))
-    for j, pg in enumerate(PAGES):
-        mid = "obj-p-bgmsg-" + pg
-        boxes.append(msg(mid, ", ".join(("script show bg_" if q == pg else "script hide bg_") + q for q in PAGES), (360 + j * 200, 360), 190))
-        lines += [line("obj-p-bgsel", j, mid, 0), line(mid, 0, "obj-p-thispatcher", 0)]
+    # "bg <page>" from the panel -> pic midigpt_bg_<page>.png into the background picture
+    boxes += [newobj("obj-p-bgname", "sprintf symout midigpt_bg_%s.png", (360, 400), 1, 1, w=200),
+              newobj("obj-p-bgpre", "prepend pic", (360, 430), 1, 1, w=80)]
+    lines += [line("obj-p-out", 3, "obj-p-bgname", 0), line("obj-p-bgname", 0, "obj-p-bgpre", 0), line("obj-p-bgpre", 0, "obj-p-bgpic", 0)]
     for bid in ids:
         lines += [line(bid, 0, "obj-p-out", 0), line("obj-p-page", 0, bid, 0)]
     lines.append(line("obj-p-out", 2, "obj-p-page", 0))
@@ -158,14 +152,14 @@ def build_window(old):
               line("obj-p-out", 5, "obj-p-seed-defer", 0), line("obj-p-seed-defer", 0, "obj-p-seed-set", 0),
               line("obj-p-seed-set", 0, "obj-p-seed", 0)]
 
-    # once the window exists: size it, and ask midigpt.js for the state
+    # size the window. The panel says "ready" itself on its first paint (the window is open): the state pushes
+    # start then, not at device load.
     boxes += [newobj("obj-p-lb", "loadbang", (700, 40), 1, 1, w=60),
               newobj("obj-p-defer", "deferlow", (700, 70), 1, 1, w=60),
-              msg("obj-p-ready", "panel ready", (700, 100), 80),
               msg("obj-p-winmsg", "title MIDI-GPT, window size 200 80 1160 720, window flags nogrow, window flags nozoom, window exec, "
                                   "presentation 1, scrollto 0 0", (800, 100), 420),
               newobj("obj-p-thispatcher2", "thispatcher", (800, 140), 1, 2, w=80)]
-    lines += [line("obj-p-lb", 0, "obj-p-defer", 0), line("obj-p-defer", 0, "obj-p-ready", 0), line("obj-p-ready", 0, "obj-1", 0),
+    lines += [line("obj-p-lb", 0, "obj-p-defer", 0),
               line("obj-p-defer", 0, "obj-p-winmsg", 0), line("obj-p-winmsg", 0, "obj-p-thispatcher2", 0)]
 
     boxes.append({"box": {"id": "obj-p-bg", "maxclass": "panel", "mode": 0, "bgcolor": BG, "rounded": 0,

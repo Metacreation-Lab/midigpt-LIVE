@@ -6,12 +6,14 @@
 //                                          the main device, then in the installed MIDI-GPT folder.
 //   config_set <key> <value...>            save a setting in the per-user config file
 //   http_body <id> <i> <|text>             one chunk of a request body
-//   http_send <id> <method> <url> <timeout ms> <chunks>
+//   http_send <id> <method> <url> <timeout ms> <chunks> <|dump path or |>
 //                                          make the request; replies http_chunk <id> <i> <|text> for each chunk of
 //                                          the response, then http_done <id> <status> <chunks> (status 0: no
 //                                          connection), or http_timeout <id>. A streamed reply (text/event-stream)
 //                                          sends http_event <id> <|json> per notes or progress frame ({ n: new notes,
-//                                          progress }) and then the final frame's response as the reply
+//                                          progress }), at most every 200 ms, and then the final frame's response
+//                                          as the reply. With a dump path (dev mode) the body and the reply are
+//                                          also written to <path>.req.json / .resp.json
 //   http_abort <id>                        drop an in-flight request
 //
 // Sends "config <key> <value...>" for every saved setting when it starts and on "hello", then "config_ready".
@@ -83,7 +85,7 @@ maxApi.addHandler("config_set", (key, ...value) => {
 // Bodies and replies travel in chunks prefixed with "|", so Max never reads a chunk as a number.
 const http = require("http");
 const https = require("https");
-const CHUNK = 4000;
+const CHUNK = 16000;   // under Max's ~32k-character message argument, with room for the "|" prefix
 const bodies = {};     // id -> body chunks
 const requests = {};   // id -> in-flight request
 
@@ -91,11 +93,28 @@ maxApi.addHandler("http_body", (id, i, text) => {
   (bodies[id] = bodies[id] || [])[i] = String(text).slice(1);
 });
 
-maxApi.addHandler("http_send", (id, method, url, timeout, n) => {
+// Streamed progress goes to Max at most this often (the panel cannot show more), the note counts added up.
+const EVENT_MS = 200;
+
+maxApi.addHandler("http_send", (id, method, url, timeout, n, dumpArg) => {
   const body = (bodies[id] || []).slice(0, n).join("");
   delete bodies[id];
+  // dev mode: the full body and reply as files (a Max message cuts a log line at ~32k characters)
+  const dump = dumpArg && String(dumpArg).length > 1 ? posixPath(String(dumpArg).slice(1)) : "";
+  const save = (ext, text) => {
+    if (!dump) return;
+    fs.mkdir(path.dirname(dump), { recursive: true }, () => fs.writeFile(dump + ext, text, () => {}));
+  };
+  save(".req.json", body);
   let done = false;
-  const finish = (...msg) => { if (done) return; done = true; delete requests[id]; maxApi.outlet(...msg); };
+  let evN = 0, evProgress = null, evTimer = null;
+  const flushEvent = () => {
+    if (evTimer) { clearTimeout(evTimer); evTimer = null; }
+    if (done || (!evN && !evProgress)) return;
+    maxApi.outlet("http_event", id, "|" + JSON.stringify({ n: evN, progress: evProgress }));
+    evN = 0; evProgress = null;
+  };
+  const finish = (...msg) => { if (done) return; done = true; if (evTimer) clearTimeout(evTimer); delete requests[id]; maxApi.outlet(...msg); };
   let req;
   try {
     const u = new URL(String(url));
@@ -113,7 +132,11 @@ maxApi.addHandler("http_send", (id, method, url, timeout, n) => {
           const frame = buf.slice(0, k); buf = buf.slice(k + 2);
           const line = frame.split("\n").find((l) => l.startsWith("data:"));
           let ev; try { ev = JSON.parse(line.slice(5)); } catch (e) { continue; }
-          if (ev.type === "notes" || ev.type === "progress") { if (!done) maxApi.outlet("http_event", id, "|" + JSON.stringify({ n: (ev.notes || []).length, progress: ev.progress || null })); }
+          if (ev.type === "notes" || ev.type === "progress") {
+            evN += (ev.notes || []).length;
+            if (ev.progress) evProgress = ev.progress;
+            if (!evTimer) evTimer = setTimeout(flushEvent, EVENT_MS);
+          }
           else if (ev.type === "error") { status = 500; final = JSON.stringify({ detail: ev.error }); }
           else if (ev.response) final = JSON.stringify(ev.response);
         }
@@ -122,6 +145,8 @@ maxApi.addHandler("http_send", (id, method, url, timeout, n) => {
         if (done) return;
         const text = sse ? (final || "") : parts.join("");
         if (sse && !final) status = 0;      // the stream ended without its last frame
+        flushEvent();                       // the last progress before the reply
+        save(".resp.json", text);
         const n = Math.ceil(text.length / CHUNK);
         for (let k = 0; k < n; k++) maxApi.outlet("http_chunk", id, k, "|" + text.substr(k * CHUNK, CHUNK));
         finish("http_done", id, status, n);

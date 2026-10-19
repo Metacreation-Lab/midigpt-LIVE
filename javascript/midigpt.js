@@ -104,6 +104,8 @@ post = function() {
 // Diagnostic logging -- a no-op unless debug is on. Use error() for
 // anything the user should always see in the Max console.
 function flog() { if (debug) post.apply(null, arguments); }
+// Dev mode: where a request's full body and reply go (the Node helper writes them; see http_send's dump argument).
+function dump_prefix(request_id){ return root_path("midigpt_requests/" + request_id); }
 
 // Written every time this script is (re)compiled: grep the log for
 // "SCRIPT LOADED" to check that an edit is live.
@@ -373,6 +375,7 @@ var current_track_slots = [];
 var write_track_nrs = [];
 var write_clip_ids = [];
 var write_max_loop_start = 0;
+var write_original = [];    // the targets as they were at GENERATE (build_request): what the take picker's revert restores
 
 var scene_tempo, session_ts_n, session_ts_d;
 
@@ -549,7 +552,7 @@ function init_live_api(attempt){
     if (!live_set) post("no api object for set\n");
     scene_ids = strip_ids(live_set.get("scenes"));
     track_ids = strip_midi(strip_ids(live_set.get("tracks")));
-    flog("init_live_api: attempt=" + attempt + " scene_ids=" + JSON.stringify(scene_ids) + " track_ids=" + JSON.stringify(track_ids));
+    debug && flog("init_live_api: attempt=" + attempt + " scene_ids=" + JSON.stringify(scene_ids) + " track_ids=" + JSON.stringify(track_ids));
 
     if (scene_ids.length === 0 && track_ids.length === 0 && attempt < 15) {
         var retryTask = new Task(function(){ init_live_api(attempt + 1); }, this);
@@ -631,11 +634,11 @@ function init_live_api(attempt){
     var seedTask = new Task(function(){
         try {
             var init_sel_scene = set_view.get("selected_scene");
-            flog("init_live_api: seedTask init_sel_scene=" + JSON.stringify(init_sel_scene));
+            debug && flog("init_live_api: seedTask init_sel_scene=" + JSON.stringify(init_sel_scene));
             if (init_sel_scene && init_sel_scene[1] !== undefined)
                 scene_selected(["selected_scene", "id", init_sel_scene[1]]);
             var init_sel_track = set_view.get("selected_track");
-            flog("init_live_api: seedTask init_sel_track=" + JSON.stringify(init_sel_track));
+            debug && flog("init_live_api: seedTask init_sel_track=" + JSON.stringify(init_sel_track));
             if (init_sel_track && init_sel_track[1] !== undefined)
                 track_selected(["selected_track", "id", init_sel_track[1]]);
             // The clip observers fired before the scene/track above were
@@ -663,13 +666,14 @@ function init_live_api(attempt){
 // interval, so a slow/timed-out check can't stack up overlapping polls.
 var HEALTH_POLL_MS = 15000;
 var health_task = null;
+var health_misses = 0;      // polls in a row the server didn't answer: back off 15 -> 30 -> 60 s
 
 function schedule_health_poll(){
     if (device_deleted) return;
     if (!health_task) health_task = new Task(function(){
-        http_health(function(){ schedule_health_poll(); });
+        http_health(function(ok){ health_misses = ok ? 0 : health_misses + 1; schedule_health_poll(); });
     }, this);
-    health_task.schedule(HEALTH_POLL_MS);
+    health_task.schedule(HEALTH_POLL_MS * Math.min(4, Math.pow(2, health_misses)));
 }
 
 // HTTP goes through the Node helper, not Max's XMLHttpRequest: a reply that
@@ -681,7 +685,7 @@ function schedule_health_poll(){
 // NodeRequest has the part of the XMLHttpRequest interface used here. Bodies
 // and replies travel in chunks, each prefixed with "|" so Max never turns a
 // chunk that looks like a number into one.
-var HTTP_CHUNK = 4000;
+var HTTP_CHUNK = 16000;   // under Max's ~32k-character message argument (the helper uses the same)
 var http_seq = 0;
 var http_pending = {};      // id -> NodeRequest
 var node_ready = false;     // set by the helper's config_ready
@@ -694,11 +698,13 @@ function to_node(msg){
 }
 
 function node_started(){
-    if (!node_ready) flog("node helper ready, " + node_queue.length + " queued message(s)");
+    var first = !node_ready;
+    if (first) flog("node helper ready, " + node_queue.length + " queued message(s)");
     node_ready = true;
     var q = node_queue;
     node_queue = [];
     for (var i = 0; i < q.length; i++) outlet(OUT_NODE, q[i]);
+    if (first && !device_deleted) { http_info(); http_models(); schedule_health_poll(); }
 }
 
 function NodeRequest(){
@@ -722,7 +728,7 @@ NodeRequest.prototype.send = function(body){
     body = body ? String(body) : "";
     var n = Math.ceil(body.length / HTTP_CHUNK);
     for (var i = 0; i < n; i++) to_node(["http_body", id, i, "|" + body.substr(i * HTTP_CHUNK, HTTP_CHUNK)]);
-    to_node(["http_send", id, this._method, this._url, this.timeout || 0, n]);
+    to_node(["http_send", id, this._method, this._url, this.timeout || 0, n, this.dump ? "|" + this.dump : "|"]);
 };
 NodeRequest.prototype.abort = function(){
     if (!this._id || !http_pending[this._id]) return;
@@ -761,6 +767,12 @@ function notifydeleted(){
     device_deleted = true;
     var tasks = [health_task, _log_flush_task, tag_task, dict_sync_task, status_revert_task, panel_task, tag_change_task];
     for (var i = 0; i < tasks.length; i++) if (tasks[i]) tasks[i].cancel();
+    // A generation in flight would keep the server busy (up to its 5-minute timeout) and its socket open in the
+    // helper: cancel it on the server and drop every request. Replies to a deleted device are dropped by node.script.
+    try {
+        if (active_generation && !active_generation.cancel_sent) http_cancel();
+        for (var id in http_pending) if (node_ready) outlet(OUT_NODE, "http_abort", id);
+    } catch (e) {}
     http_pending = {};
 }
 
@@ -790,9 +802,8 @@ function init(){
     schedule_panel();
     outlet(OUT_NODE, "hello");   // the helper answers with config_ready (it may have started before this script)
     init_live_api();
-    http_info();
-    http_models();
-    schedule_health_poll();
+    // /info, /models and the health poll start in node_started(): the saved server address arrives from the
+    // helper first (config server_url ...), so they never go to the default address and then again.
 }
 
 /*________________________________________________________________________
@@ -802,20 +813,27 @@ function init(){
 
 var server_latency_ms = -1;
 
+// The panel is told only when what it shows changes: the light, or the latency step it displays.
+function health_result(ok, latency){
+    var changed = ok !== server_online || latency_shown(latency) !== latency_shown(server_latency_ms);
+    server_online = ok;
+    server_latency_ms = latency;
+    if (changed) schedule_panel();
+}
+
 function http_health(on_done){
-    flog("http_health: GET " + SERVER_URL + "/health");
+    debug && flog("http_health: GET " + SERVER_URL + "/health");
     var req = new_request();
     var t0 = Date.now();
     req.open("GET", SERVER_URL + "/health", true);
     req.timeout = 10000;
-    req.ontimeout = function(){ flog("http_health: TIMEOUT"); server_online = false; schedule_panel(); on_done && on_done(false); };
+    req.ontimeout = function(){ flog("http_health: TIMEOUT"); health_result(false, -1); on_done && on_done(false); };
     req.onreadystatechange = function(){
         if (req.readyState === 4) {
-            server_online = (req.status === 200);
-            server_latency_ms = server_online ? Date.now() - t0 : -1;
-            flog("http_health: " + (server_online ? "ok" : ("failed " + req.status)));
-            schedule_panel();
-            on_done && on_done(server_online);
+            var ok = req.status === 200;
+            debug && flog("http_health: " + (ok ? "ok" : ("failed " + req.status)));
+            health_result(ok, ok ? Date.now() - t0 : -1);
+            on_done && on_done(ok);
         }
     };
     req.send();
@@ -952,7 +970,6 @@ function bang(){
         report_error("server offline -- run Refresh once it's reachable");
         return;
     }
-    max_global_params.parse(JSON.stringify(global_params));
     if (build_request()){
         capture_write_ctx();
         schedule_dict_sync();
@@ -996,6 +1013,7 @@ function capture_write_ctx(){
         write_track_nrs: write_track_nrs.slice(),
         write_clip_ids: write_clip_ids.slice(),
         max_loop_start: write_max_loop_start,
+        original: write_original.slice(),
         current_scene: current_scene,
         // per target track: the bars it asked the server to generate (the only bars written back)
         gen_bars: (function () {
@@ -1026,12 +1044,9 @@ function http_generate(){
         if (req.readyState === 4) {
             if (req.status === 200) {
                 var result = JSON.parse(req.responseText);
-                // Full response, verbatim, for offline diffing against the
-                // request below -- not a summary, so nothing about a
-                // surprising/erroring response is ever lost to a field we
-                // didn't think to log.
-                flog("[" + request_id + "] RESPONSE 200 (" + (Date.now() - active_generation.started_at) + "ms): " + req.responseText);
-                log_reproduce_hint(request_id, result);
+                // the full response is in <request_id>.resp.json next to the request (dev mode; see dump_prefix())
+                debug && flog("[" + request_id + "] RESPONSE 200 (" + (Date.now() - active_generation.started_at) + "ms, " + req.responseText.length + " chars)");
+                debug && log_reproduce_hint(request_id, result);
                 handle_generate_response(result);
             } else {
                 flog("[" + request_id + "] RESPONSE ERROR " + req.status + " (" + (Date.now() - active_generation.started_at) + "ms): " + req.responseText);
@@ -1055,11 +1070,14 @@ function http_generate(){
         stream: (midigptRequest.config.num_candidates || 1) <= 1
     };
     if (global_params.model) body.model = global_params.model;
-    // Full outgoing body, verbatim -- paired with the RESPONSE line above
-    // (same request_id) this is enough to replay a request byte-for-byte
-    // against the server directly (e.g. via curl).
-    flog("[" + request_id + "] REQUEST POST " + SERVER_URL + "/generate: " + JSON.stringify(body));
-    req.send(JSON.stringify(body));
+    // In dev mode the full body (and the reply) are written by the Node helper to <request_id>.req.json /
+    // .resp.json: enough to replay a request byte-for-byte (curl -d @file). Max messages cut a log line at ~32k.
+    var text = JSON.stringify(body);
+    if (debug) {
+        req.dump = dump_prefix(request_id);
+        flog("[" + request_id + "] REQUEST POST " + SERVER_URL + "/generate (" + text.length + " chars) -> " + req.dump + ".req.json");
+    }
+    req.send(text);
 }
 
 // Server-picked seeds (config.seed omitted / seed_auto on) only exist in the
@@ -1080,10 +1098,8 @@ function log_reproduce_hint(request_id, result){
         seeds.push(result.base_seed);
     }
     if (!seeds.length) return;
-    var replay = { score: midigptScore, request: JSON.parse(JSON.stringify(midigptRequest)), request_id: request_id + "-replay", stream: false };
-    replay.request.config.seed = seeds[0];
-    if (global_params.model) replay.model = global_params.model;
-    flog("[" + request_id + "] REPRODUCE seed(s)=" + JSON.stringify(seeds) + " -- replay body (seed pinned to " + seeds[0] + "): " + JSON.stringify(replay));
+    // the request body is in <request_id>.req.json: set request.config.seed to this to rerun it exactly
+    flog("[" + request_id + "] REPRODUCE seed(s)=" + JSON.stringify(seeds) + ": " + dump_prefix(request_id) + ".req.json with request.config.seed=" + seeds[0]);
 }
 
 // Cooperative cancellation: POST /generate/{id}/cancel on its own async
@@ -1169,7 +1185,9 @@ function handle_batch_response(result){
         ctx: last_write_ctx
     };
 
-    last_generation.original = snapshot_targets(last_write_ctx);
+    // what the clips held when GENERATE was pressed (the selected take, if a batch was showing), read with the
+    // request; not read again here, so a take switched to while generating isn't mistaken for the original
+    last_generation.original = last_write_ctx && last_write_ctx.original ? last_write_ctx.original : snapshot_targets(last_write_ctx);
     if (selected >= 0) write_score_to_clips(candidates[selected].score, last_write_ctx);
     schedule_panel();
 }
@@ -1219,15 +1237,24 @@ function write_score_to_clips(score, ctx){
         var clip = new LiveAPI();
         clip.id = ctx.write_clip_ids[track_nr];
         if (!+clip.id) { flog("  -> skipping (no clip id)"); continue; }
-        var bar_len = clip.get("signature_numerator")[0] / clip.get("signature_denominator")[0] * 4;
+        // the meter is in the reply (every bar carries it); the clip is asked only if it isn't
+        var b0 = scoreBars[0] || {};
+        var bar_len = b0.ts_numerator && b0.ts_denominator ? b0.ts_numerator / b0.ts_denominator * 4
+                    : clip.get("signature_numerator")[0] / clip.get("signature_denominator")[0] * 4;
         var total_beats = bar_len * scoreBars.length;
         // Only the bars this track asked to generate are written, so context stays exactly as it was whatever
         // the server returns for it (servers before MIDI-GPT PR #11 could move a context bar's downbeat).
-        var genBars = ctx.gen_bars && ctx.gen_bars[+t] ? ctx.gen_bars[+t] : null;
+        // Adjacent bars are cleared in one call.
+        var genBars = ctx.gen_bars && ctx.gen_bars[+t] ? ctx.gen_bars[+t].slice().sort(function (x, y) { return x - y; }) : null;
         if (genBars) {
-            for (var gb = 0; gb < genBars.length; gb++) clip.call("remove_notes_extended", 0, 128, genBars[gb] * bar_len, bar_len);
+            for (var gb = 0; gb < genBars.length; ) {
+                var run = 1;
+                while (gb + run < genBars.length && genBars[gb + run] === genBars[gb] + run) run++;
+                clip.call("remove_notes_extended", 0, 128, genBars[gb] * bar_len, run * bar_len);
+                gb += run;
+            }
         } else {
-            clip.call("remove_notes_extended", 0, 127, 0, 10000);
+            clip.call("remove_notes_extended", 0, 128, 0, 10000);
         }
         var notes = { notes: [] };
         for (var b in scoreBars) {
@@ -1235,7 +1262,7 @@ function write_score_to_clips(score, ctx){
             var barNotes = scoreBars[b].notes || [];
             for (var n in barNotes) {
                 var sn = barNotes[n];
-                flog("  raw note bar=" + b + " " + JSON.stringify(sn));
+                debug && flog("  raw note bar=" + b + " " + JSON.stringify(sn));
                 // Ticks are divided by this response's own `res` (its
                 // score.resolution, read above) -- confirmed with the server
                 // side that note ticks are governed per-score-body, never by
@@ -1252,7 +1279,7 @@ function write_score_to_clips(score, ctx){
                 var dur = Math.max(bar_len / res, rawDurBeats);
                 // clamp note end to clip boundary
                 dur = Math.min(dur, total_beats - start);
-                flog("  -> start=" + start + " dur=" + dur);
+                debug && flog("  -> start=" + start + " dur=" + dur);
                 if (dur <= 0) continue;
                 notes.notes.push({
                     pitch: sn.pitch,
@@ -1264,15 +1291,21 @@ function write_score_to_clips(score, ctx){
         }
         flog("  writing " + notes.notes.length + " notes to clip " + clip.id + " total_beats=" + total_beats);
         clip.call("add_new_notes", notes);
-        clip.set("loop_end", total_beats);
-        clip.set("end_marker", total_beats);
+        // the clip's end once per batch: switching takes writes the same length (and each set is an undo step)
+        ctx.ends = ctx.ends || {};
+        if (ctx.ends[clip.id] !== total_beats) {
+            clip.set("loop_end", total_beats);
+            clip.set("end_marker", total_beats);
+            ctx.ends[clip.id] = total_beats;
+        }
     }
 }
 // The dicts mirror JS state so it survives a script reload; nothing reads
 // them on the hot path. Serializing every scene x track x bar on every
 // single click was a major source of lag, so writes are coalesced: any
-// number of changes within DICT_SYNC_MS produce one serialization.
-var DICT_SYNC_MS = 100;
+// number of changes within DICT_SYNC_MS produce one serialization (a knob
+// drag is one write, not ten a second).
+var DICT_SYNC_MS = 1000;
 var dict_sync_pending = false;
 var dict_sync_task = new Task(function(){
     dict_sync_pending = false;
@@ -1371,7 +1404,25 @@ function report_error(msg){
 
 // The panel's view of the scene (midigpt_panel_link.js) is cached until a
 // selection, clip, track or scene change invalidates it.
-function invalidate_scene_cache(){ panel_scene_cache = null; schedule_panel(); }
+function invalidate_scene_cache(){ panel_invalidate_scene(); }
+
+// A clip was clicked (or added): its track's row is re-read, not the scene. The clip's path names its track
+// ("live_set tracks 3 clip_slots 0 clip"); anything else (an arrangement clip, nothing) refreshes the scene.
+var path_api = null;
+function invalidate_clip_track(clip_id){
+    try {
+        if (!path_api) path_api = new LiveAPI();
+        path_api.id = clip_id;
+        var m = /tracks (\d+) clip_slots/.exec(String(path_api.path));
+        if (m) {
+            path_api.path = "live_set tracks " + m[1];
+            var nr = track_ids.indexOf(+path_api.id);
+            if (nr < 0) nr = track_ids.indexOf(String(path_api.id));
+            if (nr >= 0) { panel_invalidate_tracks([nr]); return; }
+        }
+    } catch (e) { flog("invalidate_clip_track: " + e); }
+    panel_invalidate_scene();
+}
 
 /*________________________________________________________________________
 
@@ -1487,6 +1538,7 @@ function restore_original(){
         } catch (e) { flog("restore_original: " + e); }
     }
     last_generation.selected = -1;
+    if (ctx) ctx.ends = {};     // the original's ends are back: the next take sets its own again
     flog("restore_original: restored " + snap.length + " clip(s)");
 }
 
@@ -1502,7 +1554,7 @@ function handle_message(a){
         if (!/^https?:\/\//.test(String(a[1]))) a[1] = "http://" + a[1];
         SERVER_URL = a[1];
         global_params.server_url = a[1];
-        max_global_params.parse(JSON.stringify(global_params));
+        schedule_dict_sync();
         save_persisted_server_url();
         flog("server URL set to " + SERVER_URL);
         http_info();
@@ -1760,8 +1812,6 @@ function tracks_changed(args){
         debug && post("tracks changed - track ids: ", ids, "\n");
         for (pos in ids) {
             var id = ids[pos];
-            var track = new LiveAPI();
-            track.id = id;
 
             search: 
             if (track_ids[pos]!=id){
@@ -1869,11 +1919,9 @@ function refresh_params_structure(){
 
 
 function scene_selected(args){
-    flog("scene_selected: called, args=" + JSON.stringify(args));
+    debug && flog("scene_selected: called, args=" + JSON.stringify(args));
     if(args[0] == "selected_scene") {
         var id = args[2];
-        var scene = new LiveAPI();
-        scene.id = id;
         current_scene = scene_ids.indexOf(id);
         debug && post("current scene is # ", +current_scene, " with id: ", +id, "\n");
         invalidate_scene_cache();
@@ -1883,7 +1931,7 @@ function scene_selected(args){
 }
 
 function track_selected(args){
-    flog("track_selected: called, args=" + JSON.stringify(args));
+    debug && flog("track_selected: called, args=" + JSON.stringify(args));
     if(args[0]=="selected_track") {
         var id = args[2];
         var track = new LiveAPI();
@@ -1900,7 +1948,9 @@ function track_selected(args){
             current_track = -1; current_track_slots = [];
             debug && post("current_track is not a MIDI track", "\n");
         }
-        invalidate_scene_cache();
+        // Selecting a track changes no clip: refresh only that track's instrument (its devices may have changed
+        // while it was selected), not the whole scene.
+        if (current_track >= 0) panel_invalidate_tracks([current_track], true);
         clear_generation_state();
         schedule_panel();
     }
@@ -1909,7 +1959,7 @@ function track_selected(args){
 function clip_edited(args){
     if(args[0]=="detail_clip") {
         var id = args[2];
-        invalidate_scene_cache();
+        invalidate_clip_track(id);
         if (id){
             debug && post("clip  #", id, "is detailed ", "\n");
             clear_generation_state();
@@ -2035,14 +2085,13 @@ function strip_ids(args){
     return res;
 }
 
+var strip_api = null;   // one object, retargeted per track
 function strip_midi(all_ids) {
     var res_ids = [];
-    for (i in all_ids) {
-        var id = all_ids[i];
-        var track = new LiveAPI();
-        track.id = id;
-        if(+track.get("has_midi_input"))
-            res_ids.push(id)
+    if (!strip_api) strip_api = new LiveAPI();
+    for (var i = 0; i < all_ids.length; i++) {
+        strip_api.id = all_ids[i];
+        if (+strip_api.get("has_midi_input")) res_ids.push(all_ids[i]);
     }
     return res_ids;
 }
@@ -2195,56 +2244,58 @@ function build_request(){
     }
     if (!anyTarget) { report_error("Select at least one bar to infill (or enable Autoregressive) before generating."); return false; }
 
-    // manage clips with different lengths and start times:
-    var max_loop_start = 0;
-    var max_unloop_start = 0;
-    var max_length = 0;
-    var ts_n, ts_d;
-    var sigs = [];
-
-    for (t in track_ids){
-        var track = new LiveAPI();
-        track.id = track_ids[t];
-        var slot_id = strip_ids(track.get("clip_slots"))[current_scene];
-        var slot = new LiveAPI();
-        slot.id = slot_id;
-        var length;
-        if (+slot.get("has_clip")) {
-            var id = +slot.get("clip")[1];
-            debug && post("clip of track#", t, "has id: ", id);
-            var clip = new LiveAPI();
-            clip.id = id;
-            ts_n = clip.get("signature_numerator")[0];
-            ts_d = clip.get("signature_denominator")[0];
-            debug && post("looping? ", +clip.get("looping"));
-            if (+clip.get("looping")) {
-                var start = clip.get("loop_start")[0];
-                if (start>max_loop_start) max_loop_start = start;
-            } else {
-                var start = clip.get("start_marker")[0] ;
-                if (start>max_unloop_start) max_unloop_start = start;
-            }
-            length = clip.get("end_time")[0];
-            debug && post("start: ", start, " / length:", length, " / end: ", start+length, "\n");
-        } else {
-            ts_n = all_clips_params.scenes[current_scene].tracks[t].ts_numerator;
-            ts_d = all_clips_params.scenes[current_scene].tracks[t].ts_denominator;
-            length = all_clips_params.scenes[current_scene].tracks[t].n_bars_to_create * (ts_n / ts_d * 4);
+    // One pass over the tracks. The panel's rows already know each track's clip slot and instrument (cached:
+    // walking every track's slots and devices again here froze the UI for seconds); what can change between a
+    // click and GENERATE is read fresh: whether there is a clip, its meter, loop and notes.
+    var sc = panel_scene();
+    var max_loop_start = 0, max_unloop_start = 0, max_length = 0, ts_n, ts_d;
+    var infos = [], sigs = [], api = new LiveAPI(), t, info;
+    for (t = 0; t < track_ids.length; t++) {
+        var row = sc.rows[t] || panel_row(t);
+        var tp0 = all_clips_params.scenes[current_scene].tracks[t];
+        var info = { clip: 0, slot: +row.slot || 0, target: panel_is_target(apply_track_defaults(tp0)) };
+        if (!info.slot) {      // not cached (a new scene slot): look it up
+            api.id = track_ids[t];
+            info.slot = +strip_ids(api.get("clip_slots"))[current_scene] || 0;
         }
-        if (max_length < length) max_length = length; 
-        sigs.push({
-            name: track.get("name")[0],
-            num: ts_n, 
-            den: ts_d
-        });
+        if (info.slot) {
+            api.id = info.slot;
+            if (+api.get("has_clip")) info.clip = +api.get("clip")[1];
+        }
+        if (info.clip) {
+            api.id = info.clip;
+            info.num = +api.get("signature_numerator")[0];
+            info.den = +api.get("signature_denominator")[0];
+            info.looping = !!(+api.get("looping")[0]);
+            info.start = info.looping ? +api.get("loop_start")[0] : +api.get("start_marker")[0];
+            info.length = +api.get("end_time")[0];
+            if (info.looping) max_loop_start = Math.max(max_loop_start, info.start);
+            else max_unloop_start = Math.max(max_unloop_start, info.start);
+            if (info.target) {
+                // the whole clip once: the notes in the window go to the server, all of them (every Live 11 note
+                // field) are the take picker's "original"
+                info.loop_end = +api.get("loop_end")[0];
+                info.end_marker = +api.get("end_marker")[0];
+                var all = (JSON.parse(api.call("get_notes_extended", 0, 128, 0, 100000)).notes || []);
+                info.original = all.map(function (n) { var c = {}; for (var k in n) if (k !== "note_id") c[k] = n[k]; return c; });
+                info.notes = all.filter(function (n) { return n.start_time >= info.start && n.start_time < info.start + info.length; });
+            } else {
+                info.notes = JSON.parse(api.call("get_notes_extended", 0, 128, info.start, info.length)).notes || [];
+            }
+            ts_n = info.num; ts_d = info.den;
+        } else {
+            ts_n = tp0.ts_numerator; ts_d = tp0.ts_denominator;
+            info.length = tp0.n_bars_to_create * (ts_n / ts_d * 4);
+        }
+        max_length = Math.max(max_length, info.length);
+        sigs.push({ name: row.name, num: ts_n, den: ts_d });
+        infos.push(info);
     }
     // test for different time signatures:
-    var n = 0;
-    var d = 0;;
-    for (var t = 1; t < sigs.length; t++){
+    for (t = 1; t < sigs.length; t++){
         if (sigs[t-1].num != sigs[t].num || sigs[t-1].den != sigs[t].den) {
             var sig_err = "";
-            for (s in sigs) sig_err += sigs[s].name + " " + sigs[s].num + " " + sigs[s].den + " ";
+            for (var s2 = 0; s2 < sigs.length; s2++) sig_err += sigs[s2].name + " " + sigs[s2].num + " " + sigs[s2].den + " ";
             report_error("Time signature mismatch across selected clips: " + sig_err);
             return false;
         }
@@ -2272,15 +2323,16 @@ function build_request(){
     debug && post("GENERATING PIECE!!",  "\n");
     write_track_nrs = [];
     write_clip_ids = [];
+    write_original = [];
     write_max_loop_start = max_loop_start;
-    for (t in track_ids){
-
+    for (t = 0; t < track_ids.length; t++){
+        info = infos[t];
         var tparams = apply_track_defaults(all_clips_params.scenes[current_scene].tracks[t]);
 
-        // The instrument is a track property (the MIDI-GPT Instrument tag, see get_track_instrument()).
-        var trackInst = get_track_instrument(track_ids[t]);
-        var isDrum = trackInst.track_type === "drum";
-        var midiProgram = isDrum ? 0 : trackInst.instrument;
+        // The instrument is a track property (the MIDI-GPT Instrument tag), cached with the panel's rows.
+        var det = cached_instrument(track_ids[t]);
+        var isDrum = det.instrument === TAG_DRUMS;
+        var midiProgram = isDrum ? 0 : det.instrument;
 
         midigptScore.tracks[t] = { track_type: isDrum ? "drum" : "melodic", instrument: midiProgram, bars: [] };
 
@@ -2295,96 +2347,59 @@ function build_request(){
 
         // as_array() fixes Max's handling of single-element arrays stored as scalars:
         var sel_bars = as_array(tparams.selected_bars);
-        debug && post("track #", t, "sel_bars:", sel_bars.length, "bars\n");
 
         // A track is a generation target when AR is on or any of its bars is painted;
         // every other track in the scene is context (unless ignored).
-        var isTarget = panel_is_target(tparams);
-        debug && post("track ", t, "isTarget:", isTarget, "autoregressive:", autoregressive, "\n");
-
+        var isTarget = info.target;
         var selectedBars = [];
-
-        if (isTarget) {     // track is a generation target
-            for (var b = 0; b < nBars; b++){
-                selectedBars[b] = autoregressive || !!sel_bars[b];
-                midigptScore.tracks[t].bars[b] = { ts_numerator: ts_n, ts_denominator: ts_d, future: false, notes: [] };
-            }
-        } else {                    // track is context only (or fully excluded if ignore_track)
-            debug && post("conditioning on track #", t, "\n");
-            for (var b = 0; b < nBars; b++){
-                selectedBars[b] = false;
-                midigptScore.tracks[t].bars[b] = { ts_numerator: ts_n, ts_denominator: ts_d, future: false, notes: [] };
-            }
+        for (var b = 0; b < nBars; b++){
+            selectedBars[b] = isTarget && (autoregressive || !!sel_bars[b]);
+            midigptScore.tracks[t].bars[b] = { ts_numerator: ts_n, ts_denominator: ts_d, future: false, notes: [] };
         }
 
-        // fetch notes:
-        var track = new LiveAPI();
-        var tid = track_ids[t];
-        track.id = tid;
-        var slot_id = strip_ids(track.get("clip_slots"))[current_scene];
-        var slot = new LiveAPI();
-        slot.id = slot_id;
-        if (+slot.get("has_clip")) {
-            var id = +slot.get("clip")[1];
-            debug && post("clip of track#", t, "has id:", id, "\n");
-            if (isTarget) { write_track_nrs.push(t); write_clip_ids.push(id); }
-            var clip = new LiveAPI();
-            clip.id = id;
-
-            var start, length, liveNotes;
-            var looping = !!clip.get("looping");
-            start = looping ? clip.get("loop_start")[0] : clip.get("start_marker")[0];
-            length = clip.get("end_time")[0];
-            tS = looping ? max_loop_start : max_unloop_start;
-            bL = (ts_n / ts_d * 4);
-            tparams.start_time = start;
-            tparams.length = length;
-
-            liveNotes = JSON.parse(clip.call("get_notes_extended", 0, 127, start, length));
-            debug && post(liveNotes.notes.length, "notes on track#", t, "\n");
-
-            if (liveNotes.notes.length > 0){
+        if (info.clip) {
+            if (isTarget) {
+                write_track_nrs.push(t); write_clip_ids.push(info.clip);
+                write_original.push({ track: t, clip: info.clip, loop_end: info.loop_end, end_marker: info.end_marker, notes: info.original });
+            }
+            var tS = info.looping ? max_loop_start : max_unloop_start;
+            var bL = (ts_n / ts_d * 4);
+            tparams.start_time = info.start;
+            tparams.length = info.length;
+            if (info.notes.length > 0){
                 // A looping clip shorter than the generation window repeats: bars past the loop
                 // read from the wrapped-back position (modulo the loop's own bar count).
-                var loopBars = Math.max(1, Math.round(length / bL));
-                debug && post("mapping notes for track#", t, "looping?", looping, "tS:", tS, "loopBars:", loopBars, "\n");
-                for (var b = 0; b < nBars; b++){
-                    var tb = looping ? (b % loopBars) : b;
-                    for (var n in liveNotes.notes){
-                        var note = liveNotes.notes[n];
-                        if (note.start_time >= tb * bL + tS && note.start_time < (tb+1) * bL + tS) {
-                            midigptScore.tracks[t].bars[b].notes.push({
-                                pitch: note.pitch,
-                                velocity: note.velocity,
-                                onset_ticks: beats_to_ticks(note.start_time - tb * bL - tS),
-                                duration_ticks: Math.max(1, beats_to_ticks(note.duration)),
-                                delta: 0
-                            });
-                        }
+                var loopBars = Math.max(1, Math.round(info.length / bL));
+                for (var k = 0; k < info.notes.length; k++){
+                    var note = info.notes[k];
+                    var tb = Math.floor((note.start_time - tS) / bL);
+                    if (tb < 0 || (info.looping && tb >= loopBars)) continue;   // past the loop: never heard
+                    // a looping clip's bar repeats every loopBars bars across the window; else it is played once
+                    for (b = tb; b < nBars; b += info.looping ? loopBars : nBars) {
+                        midigptScore.tracks[t].bars[b].notes.push({
+                            pitch: note.pitch,
+                            velocity: note.velocity,
+                            onset_ticks: beats_to_ticks(note.start_time - tb * bL - tS),
+                            duration_ticks: Math.max(1, beats_to_ticks(note.duration)),
+                            delta: 0
+                        });
                     }
                 }
-            } else {
-                if (!isTarget) {
-                    ignore_track = true;
-                    debug && post("empty clip on track#", t, "-> ignored for conditioning\n");
-                } else {
-                    debug && post("empty clip on track#", t, "-> will be generated from scratch\n");
-                }
+            } else if (!isTarget) {
+                ignore_track = true;   // an empty clip is no context
             }
+        } else if (!isTarget) {
+            ignore_track = true;       // an empty slot is no context
         } else {
-            if (!isTarget) {
-                debug && post("empty slot on track#", t, "-> ignored for conditioning\n");
-                ignore_track = true;
-            } else {
-                debug && post("no clip on track#", t, "-> creating clip\n");
-                var length = tparams.n_bars_to_create * (ts_n / ts_d * 4);
-                slot.call("create_clip", length + max_loop_start);
-                var id = +slot.get("clip")[1];
-                var clip = new LiveAPI();
-                clip.id = id;
-                clip.set("loop_start", max_loop_start);
-                write_track_nrs.push(t); write_clip_ids.push(id);
-            }
+            // a target without a clip: create one as long as the scene
+            var newLen = tparams.n_bars_to_create * (ts_n / ts_d * 4);
+            api.id = info.slot;
+            api.call("create_clip", newLen + max_loop_start);
+            var newId = +api.get("clip")[1];
+            api.id = newId;
+            api.set("loop_start", max_loop_start);
+            write_track_nrs.push(t); write_clip_ids.push(newId);
+            write_original.push({ track: t, clip: newId, loop_end: +api.get("loop_end")[0], end_marker: +api.get("end_marker")[0], notes: [] });
         }
 
         // Each bar's notes in time order (Live lists them by pitch): servers before MIDI-GPT PR #11 encode a

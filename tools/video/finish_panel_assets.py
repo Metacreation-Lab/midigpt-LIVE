@@ -19,7 +19,7 @@ from PIL import Image
 FIELDS, RAW, OUT = sys.argv[1:4]
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 S = 2
-DIMS = (28, 50, 55, 62)
+DIMS = {"knob": (55,), "thumb": (50,), "key": (28, 50, 62)}   # midigpt_panel.js DIMS: the levels each kind is drawn at
 
 
 def srgb(c):
@@ -72,7 +72,7 @@ def main():
         a, b = (srgb(np.load(os.path.join(RAW, "%s_%s.npy" % (name, p))) * k) for p in "ab")
         im = sprite(f, a, b)
         im.save(os.path.join(OUT, "midigpt_%s.png" % name), optimize=True)
-        for d in DIMS:                                   # pre-dimmed copies for disabled parts (midigpt_panel.js DIMS)
+        for d in DIMS[name.split("_")[0]]:              # pre-dimmed copies for disabled parts (midigpt_panel.js DIMS)
             dm = im.copy()
             dm.putalpha(dm.getchannel("A").point(lambda v, d=d: int(v * d / 100 + 0.5)))
             dm.save(os.path.join(OUT, "midigpt_%s_a%d.png" % (name, d)), optimize=True)

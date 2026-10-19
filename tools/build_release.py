@@ -81,6 +81,18 @@ def inline(name, seen=()):
     return REQUIRE.sub(req, INCLUDE.sub(inc, src))
 
 
+def strip_bridge(src, dst):
+    """A copy of the device without the dev bridge (tools/bridge.py): it binds a UDP port in every instance and is
+    inert without .midigpt_dev, which a release never has."""
+    doc = M.load(src)
+    p = doc.patcher
+    gone = {b["box"]["id"] for b in p["boxes"] if b["box"]["id"].startswith("obj-bridge-")}
+    p["boxes"] = [b for b in p["boxes"] if b["box"]["id"] not in gone]
+    p["lines"] = [l for l in p["lines"] if l["patchline"]["source"][0] not in gone and l["patchline"]["destination"][0] not in gone]
+    M.save(doc, dst)
+    return dst
+
+
 def main():
     version = open(os.path.join(ROOT, "VERSION")).read().strip()
     repo = os.environ.get("MIDIGPT_LIVE_REPO", "Metacreation-Lab/midigpt-LIVE")
@@ -103,6 +115,8 @@ def main():
         files, missing = F.collect(p, [stage, MEDIA], extra, use_cache=False)
         if missing:
             sys.exit("build_release: %s needs files that were not found: %s" % (dev, ", ".join(missing)))
+        if dev == "MIDI-GPT.amxd":
+            src = strip_bridge(src, os.path.join(stage, dev))
         F.freeze(src, os.path.join(out, dev), [], files=files)
         size = os.path.getsize(os.path.join(out, dev))
         print("froze %-26s %3d files  %6.1f KB" % (dev, len(files), size / 1024))

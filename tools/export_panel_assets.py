@@ -26,7 +26,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MEDIA = os.path.join(ROOT, "media", "panel")
 SPEC_JS = os.path.join(ROOT, "javascript", "midigpt_panel_spec.js")
 PREFIX = "midigpt_"
-DIMS = (28, 50, 55, 62)   # alpha %, as in midigpt_panel.js
+DIMS = {"knob": (55,), "thumb": (50,), "key": (28, 50, 62)}   # alpha %, as in midigpt_panel.js DIMS
 
 
 def main():
@@ -41,7 +41,7 @@ def main():
         shutil.copy(os.path.join(tmp, f), os.path.join(MEDIA, PREFIX + f))
         if not f.startswith("bg_"):   # pre-dimmed copies for disabled parts (midigpt_panel.js DIMS)
             im = Image.open(os.path.join(tmp, f)).convert("RGBA")
-            for a in DIMS:
+            for a in DIMS[f.split("_")[0]]:
                 d = im.copy()
                 d.putalpha(d.getchannel("A").point(lambda v, a=a: int(v * a / 100 + 0.5)))
                 d.save(os.path.join(MEDIA, PREFIX + f.replace(".png", "_a%d.png" % a)), optimize=True)

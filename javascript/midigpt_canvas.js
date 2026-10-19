@@ -7,7 +7,7 @@
 // rgba()), lineWidth/Cap/Join, setLineDash (strokeRect only), font
 // ("700 7.4px ..."), letterSpacing, textAlign, textBaseline (middle /
 // alphabetic), fillText, measureText, beginPath, moveTo, lineTo, arc, arcTo,
-// closePath, fill, stroke, fillRect, strokeRect, clearRect, drawImage
+// rect, closePath, fill, stroke, fillRect, strokeRect, clearRect, drawImage
 // (Image objects), translate, scale.
 //
 // Differences from a browser canvas: fillRect/strokeRect clear the current
@@ -53,15 +53,20 @@ exports.wrap = function (mg) {
         mg.set_line_cap(ctx.lineCap === "round" ? "round" : ctx.lineCap === "square" ? "square" : "butt");
         mg.set_line_join(ctx.lineJoin === "round" ? "round" : ctx.lineJoin === "bevel" ? "bevel" : "miter");
     }
+    var fontCache = {}, extentCache = {};
     function fontProps() {
-        var m = /(\d+)?\s*([\d.]+)px/.exec(ctx.font) || [0, 400, 10];
-        var w = +(m[1] || 400), size = +m[2];
-        var face = FACES[w >= 600 ? 700 : 400];
-        mg.select_font_face(face);
-        mg.set_font_size(size);
-        return { face: face, size: size };
+        var f = fontCache[ctx.font];
+        if (!f) {
+            var m = /(\d+)?\s*([\d.]+)px/.exec(ctx.font) || [0, 400, 10];
+            var w = +(m[1] || 400), size = +m[2];
+            f = fontCache[ctx.font] = { face: FACES[w >= 600 ? 700 : 400], size: size };
+        }
+        mg.select_font_face(f.face);
+        mg.set_font_size(f.size);
+        return f;
     }
-    function spacing() { return parseFloat(ctx.letterSpacing) || 0; }
+    // Letter spacing is drawn one character at a time; half a pixel or less is not worth it (one show_text).
+    function spacing() { var sp = parseFloat(ctx.letterSpacing) || 0; return sp > 0.5 ? sp : 0; }
     function charW(f, ch) {
         var k = f.face + f.size + ch, w = widthCache[k];
         if (w === undefined) { w = mg.text_measure(ch)[0]; widthCache[k] = w; }
@@ -98,6 +103,7 @@ exports.wrap = function (mg) {
     ctx.moveTo = function (x, y) { mg.move_to(x, y); ctx._px = ctx._sx = x; ctx._py = ctx._sy = y; };
     ctx.lineTo = function (x, y) { mg.line_to(x, y); ctx._px = x; ctx._py = y; };
     ctx.closePath = function () { mg.close_path(); ctx._px = ctx._sx; ctx._py = ctx._sy; };
+    ctx.rect = function (x, y, w, h) { mg.rectangle(x, y, w, h); };   // adds to the path: many rects, one fill
     ctx.arc = function (cx, cy, r, a0, a1, ccw) {
         if (ccw) mg.arc_negative(cx, cy, r, a0, a1); else mg.arc(cx, cy, r, a0, a1);
         ctx._px = cx + r * Math.cos(a1); ctx._py = cy + r * Math.sin(a1);
@@ -151,7 +157,8 @@ exports.wrap = function (mg) {
         if (ctx.textAlign === "center") x -= w / 2;
         else if (ctx.textAlign === "right" || ctx.textAlign === "end") x -= w;
         if (ctx.textBaseline === "middle") {
-            var fe = mg.font_extents();   // [ascent, descent, height]
+            var ek = f.face + f.size, fe = extentCache[ek];
+            if (!fe) fe = extentCache[ek] = mg.font_extents();   // [ascent, descent, height]
             y += (fe[0] - fe[1]) / 2;
         }
         src(ctx.fillStyle);

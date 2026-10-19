@@ -11,7 +11,7 @@
 
 var panel_ready = false;         // the panel said "ready": state pushes start
 var panel_task = null;
-var panel_last = { state: "", notes: "" };
+var panel_last = { state: "", notes: null };   // notes: the scene cache whose notes were sent last
 var panel_scene_cache = null;
 var panel_fault_state = null;    // {id, code, cause, action, warn, notSent, retry}
 var panel_fault_seq = 0;
@@ -24,7 +24,7 @@ function schedule_panel(){
     panel_task.schedule(15);
 }
 
-function panel_invalidate_scene(){ panel_scene_cache = null; schedule_panel(); }
+function panel_invalidate_scene(){ panel_scene_cache = null; panel_rows = {}; track_inst_cache = {}; schedule_panel(); }
 
 // A tag device was added, changed or removed (it sends "tag_changed" through [s midigpt_tag_changed]). Live has not
 // always finished adding / removing the device yet, so re-read the tracks a moment later.
@@ -41,58 +41,92 @@ function short_name(name){
     return s.length > 7 ? s.slice(0, 7) : (s || "TRK");
 }
 
-function panel_scene(){
-    if (panel_scene_cache && panel_scene_cache.scene === current_scene && panel_scene_cache.n === track_ids.length) return panel_scene_cache;
-    var rows = [], notes = [], maxBars = 0, ts = null;
-    for (var i = 0; i < track_ids.length && current_scene >= 0; i++) {
-        var row = { i: i, name: "", short: "", hc: 0, nb: 0, inst: 0, src: "DEFAULT" }, barNotes = [];
-        try {
-            var track = new LiveAPI();
-            track.id = track_ids[i];
-            row.name = (track.get("name") || [""]).join(" ");
-            row.short = short_name(row.name);
-            var slotId = strip_ids(track.get("clip_slots"))[current_scene];
-            if (slotId) {
-                var slot = new LiveAPI();
-                slot.id = slotId;
-                if (+slot.get("has_clip")) {
-                    var clip = new LiveAPI();
-                    clip.id = +slot.get("clip")[1];
-                    var num = +clip.get("signature_numerator")[0], den = +clip.get("signature_denominator")[0];
-                    var barLen = num / den * 4;
-                    var looping = !!(+clip.get("looping"));
-                    var start = looping ? +clip.get("loop_start")[0] : +clip.get("start_marker")[0];
-                    var end = looping ? +clip.get("loop_end")[0] : +clip.get("end_marker")[0];
-                    row.hc = 1;
-                    row.nb = Math.max(1, Math.ceil((end - start) / barLen - 1e-6));
-                    if (!ts) ts = num + "/" + den;
-                    var live = JSON.parse(clip.call("get_notes_extended", 0, 127, start, end - start));
-                    var lo = 127, hi = 0, k;
-                    for (k = 0; k < live.notes.length; k++) { lo = Math.min(lo, live.notes[k].pitch); hi = Math.max(hi, live.notes[k].pitch); }
-                    lo -= 2; hi += 2;
-                    for (var b = 0; b < row.nb; b++) barNotes.push([]);
-                    for (k = 0; k < live.notes.length && k < 2000; k++) {
-                        var n = live.notes[k], rel = n.start_time - start, bar = Math.floor(rel / barLen);
-                        if (bar < 0 || bar >= row.nb || barNotes[bar].length >= 48) continue;
-                        var x = (rel - bar * barLen) / barLen;
-                        barNotes[bar].push([+x.toFixed(3), +Math.min(n.duration / barLen, 1 - x).toFixed(3),
-                                            +(hi > lo ? (n.pitch - lo) / (hi - lo) : 0.5).toFixed(3)]);
-                    }
-                    maxBars = Math.max(maxBars, row.nb);
+// One row per MIDI track of the selected scene, cached by track id: a click in Live refreshes one row, not the scene
+// (panel_invalidate_tracks), and a scene or track-list change empties the lot (invalidate_scene_cache). The row keeps
+// what build_request() needs to find the clip again (slot, clip id, meter), so GENERATE doesn't walk the set twice.
+var panel_rows = {}, panel_rows_scene = -2;
+var track_inst_cache = {};      // track id -> detect_track_instrument() result (tags change rarely; walking devices is slow)
+
+function cached_instrument(track_id){
+    var d = track_inst_cache[track_id];
+    if (!d) d = track_inst_cache[track_id] = detect_track_instrument(track_id);
+    return d;
+}
+
+function panel_row(i){
+    var tid = track_ids[i], row = panel_rows[tid];
+    if (row) { row.i = i; return row; }
+    row = { i: i, tid: tid, name: "", short: "", hc: 0, nb: 0, inst: 0, src: "DEFAULT", slot: 0, clip: 0, num: 0, den: 0, notes: [] };
+    try {
+        var track = new LiveAPI();
+        track.id = tid;
+        row.name = (track.get("name") || [""]).join(" ");
+        row.short = short_name(row.name);
+        row.slot = +strip_ids(track.get("clip_slots"))[current_scene] || 0;
+        if (row.slot) {
+            var slot = new LiveAPI();
+            slot.id = row.slot;
+            if (+slot.get("has_clip")) {
+                var clip = new LiveAPI();
+                clip.id = row.clip = +slot.get("clip")[1];
+                var num = row.num = +clip.get("signature_numerator")[0], den = row.den = +clip.get("signature_denominator")[0];
+                var barLen = num / den * 4;
+                var looping = !!(+clip.get("looping"));
+                var start = looping ? +clip.get("loop_start")[0] : +clip.get("start_marker")[0];
+                var end = looping ? +clip.get("loop_end")[0] : +clip.get("end_marker")[0];
+                row.hc = 1;
+                row.nb = Math.max(1, Math.ceil((end - start) / barLen - 1e-6));
+                var live = JSON.parse(clip.call("get_notes_extended", 0, 128, start, end - start));
+                var lo = 127, hi = 0, k;
+                for (k = 0; k < live.notes.length; k++) { lo = Math.min(lo, live.notes[k].pitch); hi = Math.max(hi, live.notes[k].pitch); }
+                lo -= 2; hi += 2;
+                for (var b = 0; b < row.nb; b++) row.notes.push([]);
+                for (k = 0; k < live.notes.length && k < 2000; k++) {
+                    var n = live.notes[k], rel = n.start_time - start, bar = Math.floor(rel / barLen);
+                    if (bar < 0 || bar >= row.nb || row.notes[bar].length >= 48) continue;
+                    var x = (rel - bar * barLen) / barLen;
+                    // per mille: a third shorter than 3-decimal fractions, and the roll draws at most ~200 px a bar
+                    row.notes[bar].push([Math.round(x * 1000), Math.round(Math.min(n.duration / barLen, 1 - x) * 1000),
+                                         Math.round((hi > lo ? (n.pitch - lo) / (hi - lo) : 0.5) * 1000)]);
                 }
             }
-            var det = detect_track_instrument(track_ids[i]);
-            row.inst = det.instrument;
-            row.src = det.source.toUpperCase();
-        } catch (e) { flog("panel_scene: track " + i + " failed: " + e); }
+        }
+        var det = cached_instrument(tid);
+        row.inst = det.instrument;
+        row.src = det.source.toUpperCase();
+    } catch (e) { flog("panel_row: track " + i + " failed: " + e); }
+    panel_rows[tid] = row;
+    return row;
+}
+
+function panel_scene(){
+    if (panel_scene_cache && panel_scene_cache.scene === current_scene && panel_scene_cache.n === track_ids.length) return panel_scene_cache;
+    if (panel_rows_scene !== current_scene) { panel_rows = {}; panel_rows_scene = current_scene; }
+    var rows = [], notes = [], maxBars = 0, ts = null;
+    for (var i = 0; i < track_ids.length && current_scene >= 0; i++) {
+        var row = panel_row(i);
+        if (row.hc) { maxBars = Math.max(maxBars, row.nb); if (!ts) ts = row.num + "/" + row.den; }
         rows.push(row);
-        notes.push(barNotes);
+        notes.push(row.notes);
     }
     if (!ts) {
         try { var song = new LiveAPI("live_set"); ts = song.get("signature_numerator")[0] + "/" + song.get("signature_denominator")[0]; } catch (e) { ts = "4/4"; }
     }
     panel_scene_cache = { scene: current_scene, n: track_ids.length, rows: rows, notes: notes, bars: maxBars || 8, ts: ts };
+    panel_scene_cache.nj = JSON.stringify({ scene: current_scene, pm: 1, tracks: notes });   // panel_notes, built once per rebuild (pm: per mille)
     return panel_scene_cache;
+}
+
+// Some tracks changed (a clip click, a take, a finished generation, an instrument): re-read only those rows.
+function panel_invalidate_tracks(nrs, inst){
+    for (var i = 0; i < nrs.length; i++) {
+        var tid = track_ids[+nrs[i]];
+        if (tid === undefined) continue;
+        delete panel_rows[tid];
+        if (inst) delete track_inst_cache[tid];
+    }
+    panel_scene_cache = null;
+    schedule_panel();
 }
 
 function scene_tparams(t){
@@ -153,14 +187,24 @@ function push_panel(){
     };
     var json = JSON.stringify(st);
     if (json !== panel_last.state) { panel_last.state = json; panel_send("panel_state", json); }
-    var nj = JSON.stringify({ scene: current_scene, tracks: sc.notes });
-    if (nj !== panel_last.notes) { panel_last.notes = nj; panel_send("panel_notes", nj); }
+    if (sc !== panel_last.notes) {    // a rebuilt cache has new notes; the same cache has nothing new to send
+        var prev = panel_last.notes;
+        panel_last.notes = sc;
+        if (!prev || prev.nj !== sc.nj) panel_send("panel_notes", sc.nj);
+    }
 }
 
 // A Max message argument holds at most ~32k characters: a dense scene's notes are longer, and the
 // panel got a cut-off string it could not parse (an empty or stale roll). A long message goes in
 // parts under its own name, each "~part:<i>:<n>|<text>" (the patch routes only these two names).
 var PANEL_PART = 16000;
+// The latency the panel shows, in steps: the /health poll measures a slightly different number every time, and an
+// unrounded one changed the state (and repainted the roll) on every poll.
+function latency_shown(ms){
+    if (ms < 0) return 0;
+    return ms < 20 ? Math.max(1, Math.ceil(ms / 5) * 5) : ms < 200 ? Math.round(ms / 10) * 10 : Math.round(ms / 50) * 50;
+}
+
 function panel_send(kind, json){
     if (json.length <= PANEL_PART) { outlet(OUT_PANEL, kind, json); return; }
     var n = Math.ceil(json.length / PANEL_PART);
@@ -262,7 +306,8 @@ function panel_generation_done(result){
     if (result.attempts) panel_gen.att = +result.attempts;   // servers before the attempts field leave it as it was
     if (failed && ok) panel_fault("TAKES LOST", failed + " OF " + (ok + failed) + " TAKES FAILED CHECKS", ok + " TAKES READY", { warn: 1, noReport: true });
     else if (trunc) panel_fault("CTX LIMIT", "TAKES MAY BE CUT SHORT", "LOWER CONTEXT OR BARS", { warn: 1, noReport: true });
-    panel_invalidate_scene();
+    // only the targets' clips changed (and a target that had no clip now has one)
+    if (last_write_ctx) panel_invalidate_tracks(last_write_ctx.write_track_nrs); else panel_invalidate_scene();
 }
 function count_target_notes(score){
     var n = 0, ctx = last_write_ctx;
@@ -288,7 +333,7 @@ function panel_message(a){
     switch (verb) {
         case "ready":
             panel_ready = true;
-            panel_last = { state: "", notes: "" };
+            panel_last = { state: "", notes: null };
             panel_scene_cache = null;
             push_panel();
             return;
@@ -298,7 +343,10 @@ function panel_message(a){
             bang();
             break;
         case "cancel": http_cancel(); break;
-        case "take": if (+a[2] < 0) restore_original(); else select_candidate(+a[2]); panel_invalidate_scene(); break;
+        case "take":
+            if (+a[2] < 0) restore_original(); else select_candidate(+a[2]);
+            panel_invalidate_tracks(last_generation && last_generation.ctx ? last_generation.ctx.write_track_nrs : track_ids.map(function (_, j) { return j; }));
+            break;
         case "keep": last_generation = null; break;
         case "clear_fault": panel_fault_state = null; break;
         case "connect": http_health(); http_info(); http_models(); break;
@@ -382,7 +430,7 @@ function panel_message(a){
         case "set_instrument":
             t = +a[2];
             if (track_ids[t] !== undefined) set_track_instrument(track_ids[t], +a[3] === TAG_DRUMS ? "drum" : "melodic", +a[3] === TAG_DRUMS ? 0 : +a[3]);
-            panel_invalidate_scene();
+            panel_invalidate_tracks([t], true);
             break;
         case "setup_apply":   // setup_apply <track> <inst> <track> <inst> ...
             for (i = 2; i + 1 < a.length; i += 2) {
@@ -391,7 +439,7 @@ function panel_message(a){
                 if (track_ids[t] === undefined) continue;
                 set_track_instrument(track_ids[t], inst === TAG_DRUMS ? "drum" : "melodic", inst === TAG_DRUMS ? 0 : inst);
             }
-            panel_invalidate_scene();
+            panel_invalidate_tracks(a.slice(2).filter(function (_, j) { return j % 2 === 0; }), true);
             break;
         case "perf": flog("panel perf " + a[2] + ": avg " + a[3] + " ms, max " + a[4] + " ms"); return;
         default:

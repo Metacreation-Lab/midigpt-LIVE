@@ -37,7 +37,6 @@ var SP = SPM.SPEC, T = SPM.THEME;
 var ACC = T.led, INK = T.ink, LAB = T.lab, HUD = T.hud;
 var W = 960, H = 640;
 var g = null;
-var dirty = true;
 var REGION = jsarguments.length > 1 ? String(jsarguments[1]) : "all";
 var REGIONS = { top: [788, 2, 168, 34], roll: [4, 36, 952, 220], main: [4, 256, 684, 264], output: [688, 256, 268, 264],
                 masks: [4, 520, 952, 118], all: [0, 0, 960, 640] };
@@ -61,12 +60,14 @@ function img(name) {
 }
 // Dimmed parts use pre-dimmed sprites (name_aNN.png, see export_panel_assets.py): mgraphics' group alpha
 // draws them shifted.
-var DIMS = [28, 50, 55, 62];
+// The levels each kind is drawn at (knobs 0.55, toggle thumbs 0.5, keys 0.28 / 0.4 / 0.62); only these are shipped.
+// Keep in sync with DIMS in tools/video/finish_panel_assets.py and tools/export_panel_assets.py.
+var DIMS = { knob: [55], thumb: [50], key: [28, 50, 62] };
 function drawImg(name, x, y) {
     var a = g.globalAlpha;
     if (a < 0.999 && name.indexOf("bg_") !== 0) {
-        var best = DIMS[0];
-        for (var i = 0; i < DIMS.length; i++) if (Math.abs(DIMS[i] - a * 100) < Math.abs(best - a * 100)) best = DIMS[i];
+        var levels = DIMS[name.slice(0, name.indexOf("_"))] || [50], best = levels[0];
+        for (var i = 0; i < levels.length; i++) if (Math.abs(levels[i] - a * 100) < Math.abs(best - a * 100)) best = levels[i];
         name = name.replace(".png", "_a" + best + ".png");
     }
     var im = img(name);
@@ -135,7 +136,16 @@ function panel_state(json) {
     if (ui.setup.sel >= S.tracks.length) ui.setup.sel = Math.max(0, S.tracks.length - 1);
     refresh();
 }
-function panel_notes(json) { json = joinParts("notes", json); if (json === null) return; try { NOTESDATA = JSON.parse(json).tracks || []; } catch (e) {} notesVer++; if (inRegion("roll")) redraw(); }
+// only the roll draws notes (the patch sends them nowhere else; this guards a stale patch). "pm": per mille values.
+var NSCALE = 1;
+function panel_notes(json) {
+    if (!inRegion("roll")) return;
+    json = joinParts("notes", json);
+    if (json === null) return;
+    try { var nd = JSON.parse(json); NOTESDATA = nd.tracks || []; NSCALE = nd.pm ? 0.001 : 1; } catch (e) {}
+    notesVer++;
+    redraw();
+}
 // a long panel_state / panel_notes arrives in parts, "~part:<i>:<n>|<text>" (see panel_send in midigpt_panel_link.js);
 // returns the whole message once every part is in, else null
 var PARTS = {};
@@ -167,7 +177,11 @@ function regionKey() {
     }
     return Math.random();
 }
-function refresh() { var k = regionKey(); if (k !== lastKey) { lastKey = k; redraw(); } }
+function refresh() {
+    var k = regionKey();
+    if (k !== lastKey) { lastKey = k; redraw(); }
+    if (streamingHere() || (errSeen && errSeen.retry && !errSeen.retried)) again(STREAM_MS);
+}
 
 function curIdx() { for (var i = 0; i < S.tracks.length; i++) if (S.tracks[i].i === S.cur) return i; return -1; }
 function cur() { var i = curIdx(); return i >= 0 ? S.tracks[i] : null; }
@@ -233,13 +247,15 @@ function knobRing(cx, cy, r, lo, hi, dim, auto) {
         g.lineCap = "butt";
         return;
     }
-    var lit = [];
+    var lit = [], unlit = 0;
+    g.beginPath();          // the unlit segments share one style: one path, one stroke
     for (k = 0; k < n; k++) {
         a0 = (135 + k * step + step * 0.36) * Math.PI / 180; a1 = (135 + (k + 1) * step - step * 0.36) * Math.PI / 180;
         var mid = (k + 0.5) / n, on = !dim && mid >= lo - 0.5 / n && mid <= hi + 0.5 / n && hi > 0.004;
         if (on) lit.push([a0, a1]);
-        else { g.beginPath(); g.arc(cx, cy, rr, a0, a1); g.strokeStyle = T.dashOff; g.lineWidth = bw; g.stroke(); }
+        else { g.moveTo(cx + rr * Math.cos(a0), cy + rr * Math.sin(a0)); g.arc(cx, cy, rr, a0, a1); unlit++; }
     }
+    if (unlit) { g.strokeStyle = T.dashOff; g.lineWidth = bw; g.stroke(); }
     if (lit.length) ledStroke(function () {
         g.beginPath();
         for (var j = 0; j < lit.length; j++) { g.moveTo(cx + rr * Math.cos(lit[j][0]), cy + rr * Math.sin(lit[j][0])); g.arc(cx, cy, rr, lit[j][0], lit[j][1]); }
@@ -387,7 +403,7 @@ function drawKnob(def, name, cx, cy, r) {
 function drawToggle(def, name, x, y, w, h) {
     var on = def.get() ? 1 : 0, dim = def.dim ? def.dim() : false, key = name + x + y;
     var t = ui.anim[key] == null ? on : ui.anim[key];
-    t += (on - t) * 0.35; if (Math.abs(on - t) < 0.01) t = on; else dirty = true; ui.anim[key] = t;
+    t += (on - t) * 0.55; if (Math.abs(on - t) < 0.02) t = on; else again(0); ui.anim[key] = t;
     if (dim) g.globalAlpha = 0.5;
     var sh = h * 0.8;
     if (t > 0.02) { g.save(); g.globalAlpha *= t; g.fillStyle = T.slotOn; round(x + 0.6, y + h / 2 - sh / 2 + 0.6, w - 1.2, sh - 1.2, sh / 2); g.fill(); g.restore(); }
@@ -562,7 +578,8 @@ function hudRoll(x, y, w, h) {
                 g.strokeStyle = pc; g.lineWidth = 1.1;
                 for (var q = 0; q < 4; q++) { g.beginPath(); g.moveTo(cs[q][0] + cs[q][2] * L, cs[q][1]); g.lineTo(cs[q][0], cs[q][1]); g.lineTo(cs[q][0], cs[q][1] + cs[q][3] * L); g.stroke(); }
                 g.fillStyle = rgba(pc, 0.05); g.fillRect(bx2, yy, bw, rh);
-                if (streaming) { g.fillStyle = rgba(pc, 0.08 + 0.06 * Math.sin(now() / 120 + b2)); g.fillRect(bx2, yy, bw, rh); }
+                // steps of 0.02: each distinct colour string is parsed and cached once, not a new one every frame
+                if (streaming) { g.fillStyle = rgba(pc, Math.round((0.08 + 0.06 * Math.sin(now() / 120 + b2)) * 50) / 50); g.fillRect(bx2, yy, bw, rh); }
             } else if (!editable) {
                 // past the end of this track's clip: not part of it
             } else if (!(notes && notes.length)) {
@@ -572,10 +589,13 @@ function hudRoll(x, y, w, h) {
             }
             if (notes && notes.length && (!pt || hasTake || k === "C")) {
                 g.fillStyle = rgba(col, (pt && hasTake ? 1 : 0.6) * a);
+                g.beginPath();      // one path, one fill for the whole cell (a fill per note was thousands per paint)
                 for (var m = 0; m < notes.length; m++) {
-                    var nt = notes[m], X0 = bx2 + 3 + nt[0] * (bw - 6), X1 = X0 + Math.max(2, nt[1] * (bw - 6)), Y0 = yy + rh - 4 - nt[2] * (rh - 8);
-                    g.fillRect(X0, Y0 - 0.9, Math.min(X1, bx2 + bw - 3) - X0, 1.8);
+                    var nt = notes[m], X0 = bx2 + 3 + nt[0] * NSCALE * (bw - 6), X1 = X0 + Math.max(2, nt[1] * NSCALE * (bw - 6)), Y0 = yy + rh - 4 - nt[2] * NSCALE * (rh - 8);
+                    g.rect(X0, Y0 - 0.9, Math.min(X1, bx2 + bw - 3) - X0, 1.8);
                 }
+                g.fill();
+                g.beginPath();
             }
         }
     }
@@ -588,6 +608,7 @@ function hudRoll(x, y, w, h) {
 }
 
 // ------------------------------------------------------------------ HUD: generation stats + faults
+var LABEL_W = {};   // the stats labels' widths (fixed strings, measured once)
 function hudStats(x, y, w, h) {
     var G = S.gen;
     if (errSeen) return hudFault(x, y, w, h);
@@ -610,7 +631,8 @@ function hudStats(x, y, w, h) {
     for (var r = 0; r < rows.length; r++) {
         var cx = x + 8 + (r % 3) * cw, cy = y + 17 + (h - 17) * (Math.floor(r / 3) + 1) / 3;
         txt(cx, cy, rows[r][0], 5.8, rgba(rows[r][2], 0.6), "left", 0.6);
-        g.save(); g.font = "700 5.8px"; g.letterSpacing = "0.6px"; var lw = g.measureText(rows[r][0]).width; g.restore();
+        var lw = LABEL_W[rows[r][0]];
+        if (lw === undefined) { g.save(); g.font = "700 5.8px"; g.letterSpacing = "0.6px"; lw = LABEL_W[rows[r][0]] = g.measureText(rows[r][0]).width; g.restore(); }
         txt(cx + cw - 6, cy, rows[r][1], fitSize(rows[r][1], 7.5, 0.4, cw - 6 - lw - 5), rows[r][2], "right", 0.4);   // never over its label
     }
 }
@@ -618,7 +640,8 @@ function hudStats(x, y, w, h) {
 // what to do. Pressing the screen clears it.
 function hudFault(x, y, w, h) {
     var E = errSeen, col = E.warn ? HUD.a : HUD.m, age = now() - E.t, blink = age < 2400 && Math.floor(age / 300) % 2;
-    if (age < 2400 || E.retry) dirty = true;
+    if (age < 2400) again(300 - age % 300);                              // the blink: each half-period, not every frame
+    else if (E.retry && !E.retried) again(1000 - (age % 1000));          // the retry countdown: each second
     var tag = E.warn ? "CAUTION" : E.notSent ? "NOT SENT" : "FAULT";
     g.font = "700 6.4px"; g.letterSpacing = "1px";
     var tw = g.measureText(tag).width + 12;
@@ -633,7 +656,6 @@ function hudFault(x, y, w, h) {
     txt(x + 10, y + 21 + (h - 21) / 3, E.cause, 7, HUD.w, "left", 0.8);
     txt(x + 10, y + 21 + 2 * (h - 21) / 3, "▸ " + E.action, 6.4, HUD.c, "left", 0.7);
     hit("err", x, y, w, h, {});
-    if (E.retry && now() >= E.t + E.retry * 1000 && !E.retried) { E.retried = true; errSeen = null; send("generate"); }
 }
 function hudModels(x, y, w, h) {
     var l = S.server.online ? S.engine.models : [];
@@ -819,11 +841,16 @@ function specPage() { return ui.page === "engine" && (caps().vel || caps().micro
 
 // ------------------------------------------------------------------ paint
 var paintMs = [];
+var readySent = false, shownBg = null;
 function paint() {
     if (!g) g = CV.wrap(mgraphics);
     var t0 = now();
+    // The first paint means the window is open: only then does midigpt.js start building and pushing the panel's
+    // state (it used to from device load, for a window that may never open). One region says it.
+    if (!readySent && REGION === "top") { readySent = true; send("ready"); }
+    // the page's background picture (one fpic in the patch, switched by name; ENGINE has two layouts)
+    if (REGION === "main") { var bgp = specPage(); if (bgp !== shownBg) { shownBg = bgp; outlet(0, "bg", bgp); } }
     hits = [];
-    dirty = false;
     g.save();
     g.translate(-RX[0], -RX[1]);
     var sp = specPage();
@@ -918,7 +945,16 @@ function setupKey(k) {
     drawKey(k[1], k[2], k[3], k[4], lab, lit, fn, { size: 7.2 });
 }
 function flash(name) { ui.flash = name; later(300, function () { ui.flash = null; }); }
-function later(ms, fn) { var t = new Task(function () { fn(); redraw(); }, this); t.schedule(ms); }
+// one Task per purpose, reused (a new Task per call was never freed)
+var LATER = {};
+function later(ms, fn, key) {
+    key = key || String(fn);
+    var t = LATER[key];
+    if (!t) t = LATER[key] = new Task(function () { t.fn(); redraw(); }, this);
+    t.fn = fn;
+    t.cancel();
+    t.schedule(ms);
+}
 
 // ------------------------------------------------------------------ generate (checked here first, so the server never 422s)
 function preflight() {
@@ -1015,16 +1051,23 @@ function onclick(x, y, button, cmd, shift, caps_, opt) {
     else if (h.kind === "setup-row") { ui.setup.sel = h.d.i; ui.setup.browseFam = null; ui.setup.picked = {}; }
     else if (h.kind === "url") { urlEdit(true); }
     redraw();
+    lastKey = regionKey();    // drawn as it is now: the core's echo of this change is not a second repaint
 }
 onclick.local = 1;
 function setPaint(t, b, v) {
     var p = t.paint.split("");
     while (p.length <= b) p.push("0");
-    if (p[b] === String(v)) return;
+    if (p[b] === String(v)) return false;
     p[b] = String(v); t.paint = p.join("");
     send("bar", t.i, b, v);
+    return true;
 }
 function scrollTo(d, pos) {
+    var before = ui.scroll.row + "," + ui.scroll.bar + "," + ui.setup.scroll;
+    scrollTo_(d, pos);
+    return before !== ui.scroll.row + "," + ui.scroll.bar + "," + ui.setup.scroll;
+}
+function scrollTo_(d, pos) {
     if (d.y0 !== undefined && d.rows === undefined) {
         var f = (pos - d.y0 - d.th / 2) / Math.max(1, d.h - d.th);
         ui.scroll.row = Math.round(clamp01(f) * Math.max(0, S.tracks.length - VIEW.rows));
@@ -1054,11 +1097,13 @@ function ondrag(x, y, button, cmd, shift, caps_, opt) {
         drag.moved = true;
         emitThrottled(def);
     } else if (drag.paint) {
-        var hb = find(x, y, "roll-bar"); if (hb) setPaint(hb.d.t, hb.d.b, paintMode);
-    } else if (drag.vs) scrollTo(drag.vs, y);
-    else if (drag.hs) scrollTo(drag.hs, x);
-    else if (drag.ss) scrollTo(drag.ss, y);
+        var hb = find(x, y, "roll-bar");
+        if (!hb || !setPaint(hb.d.t, hb.d.b, paintMode)) return;      // nothing changed: no repaint
+    } else if (drag.vs) { if (!scrollTo(drag.vs, y)) return; }
+    else if (drag.hs) { if (!scrollTo(drag.hs, x)) return; }
+    else if (drag.ss) { if (!scrollTo(drag.ss, y)) return; }
     redraw();
+    lastKey = regionKey();
 }
 ondrag.local = 1;
 // a knob drag sends at most every 60 ms, and once more on release
@@ -1077,12 +1122,31 @@ function urlEdit(on, always) {
 function url_done() { ui.editingUrl = false; redraw(); }
 
 // ------------------------------------------------------------------ redraw pump (animations, running generation, fault blink)
-function redraw() { dirty = true; mgraphics.redraw(); }
+// redraw() paints now. again(ms) asks for one more paint after ms (an animation frame, a blink, a countdown); the pump
+// runs only while something is pending and stops when idle. While a generation streams, the roll (its painted-bar
+// shimmer) and the output (TIME) repaint at 8 fps; every new state repaints as well.
+var STREAM_MS = 125;
+var nextPaint = 0, pumping = false;
+function redraw() { mgraphics.redraw(); }
+function again(ms) {
+    var at = now() + Math.max(0, ms || 0);
+    if (!nextPaint || at < nextPaint) nextPaint = at;
+    if (!pumping) { pumping = true; pump.repeat(); }
+}
+function streamingHere() { return S.gen.status === "streaming" && (REGION === "roll" || REGION === "output" || REGION === "all"); }
 var pump = new Task(function () {
-    if (dirty || (S.gen.status === "streaming" && (REGION === "roll" || REGION === "output" || REGION === "all"))) { dirty = false; mgraphics.redraw(); }
+    var t = now();
+    retryCheck();
+    if (streamingHere() && !nextPaint) nextPaint = t + STREAM_MS;
+    if (nextPaint && t >= nextPaint) { nextPaint = 0; mgraphics.redraw(); if (streamingHere()) nextPaint = t + STREAM_MS; }
+    if (!nextPaint && !streamingHere() && !(errSeen && errSeen.retry && !errSeen.retried)) { pumping = false; pump.cancel(); }
 }, this);
 pump.interval = 40;
-pump.repeat();
+// a 503's automatic retry (the fault screen counts it down): sent from the pump, not from inside paint()
+function retryCheck() {
+    var E = errSeen;
+    if (E && E.retry && !E.retried && now() >= E.t + E.retry * 1000) { E.retried = true; errSeen = null; send("generate"); redraw(); }
+}
 function onresize() { mgraphics.redraw(); }
 onresize.local = 1;
 function notifydeleted() { pump.cancel(); }
