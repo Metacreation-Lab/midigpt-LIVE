@@ -4,7 +4,7 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.2.0]
 
 ### Added
 - Prism and expressive models: **KEY**, **RANGE**, **SILENCE** and **PCS** track controls, shown when the model has
@@ -17,6 +17,12 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
 - The roll and the SETUP list scroll with the mouse wheel and the trackpad.
 - The track the TRACK and MASKS controls edit is highlighted in the roll and named in the bay titles, with a
   warning when it isn't being generated.
+- Single generations stream: NOTES, TOK/S, CTX and the retry attempt update on the stats screen while it runs.
+- The seed is a small screen: click to type a seed (digits only, 1–2147483647), **DICE** for a random one, **LOCK**
+  to keep the last run's or the selected take's seed.
+- Panel images, path-traced in Blender from the same geometry: real shadows, glossy knobs.
+- Documentation site (MkDocs): install, a page per panel area, workflows, troubleshooting, developer notes.
+- Release trailer (full and short cuts).
 
 ### Changed
 - **CONTEXT**, **BARS/STEP** and **TRK/STEP** on AUTO are left to the server: windows that follow the painted bars,
@@ -26,22 +32,6 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
   prism and expressive).
 - **CTX** shows the model's window per step, and its peak when a generation finishes.
 - Lighter panel: one page background in memory, per-track refreshes, repaints only when something changes.
-
-### Fixed
-- AR generations always write their result into the target clips.
-- **NOTES** counts only the notes written back, not the target tracks' context bars.
-
-## [0.2.0]
-
-### Added
-- Single generations stream: NOTES, TOK/S, CTX and the retry attempt update on the stats screen while it runs.
-- The seed is a small screen: click to type a seed (digits only, 1–2147483647), **DICE** for a random one, **LOCK**
-  to keep the last run's or the selected take's seed.
-- Panel images, path-traced in Blender from the same geometry: real shadows, glossy knobs.
-- Documentation site (MkDocs): install, a page per panel area, workflows, troubleshooting, developer notes.
-- Release trailer (full and short cuts).
-
-### Changed
 - All HTTP goes through the Node helper: a reply arriving after the device was closed or deleted could crash Live.
 - Stats read the server's real fields (TOK/S and CTX were always empty); ATT shows the accepted attempt.
 - Long note and state messages to the panel are sent in parts (large scenes showed an empty roll).
@@ -49,6 +39,8 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
   `curl -fsSL https://metacreation.net/midigpt-live/bootstrap.sh | bash`.
 
 ### Fixed
+- AR generations always write their result into the target clips.
+- **NOTES** counts only the notes written back, not the target tracks' context bars.
 - RUNNING and STOPPING overlapped the STATUS label.
 
 ## [0.1.0]
