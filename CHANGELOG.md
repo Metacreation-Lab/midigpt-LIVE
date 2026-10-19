@@ -6,11 +6,27 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Prism and expressive models: **KEY**, **RANGE**, **SILENCE** and **PCS** track controls, shown when the model has
+  them, and context windows up to 16 bars.
+- The roll and the SETUP list scroll with the mouse wheel and the trackpad.
+- The track the TRACK and MASKS controls edit is highlighted in the roll and named in the bay titles, with a
+  warning when it isn't being generated.
+
+### Changed
+- **VELOCITY** and **MICRO** are on by default and apply to models that can switch them (expressive).
+- Track controls are sent under the names each model uses (bar-level density, polyphony and pitch-class set on
+  prism and expressive).
+- **CTX** shows the model's window per step, and its peak when a generation finishes.
+- Lighter panel: one page background in memory, per-track refreshes, repaints only when something changes.
+
+### Fixed
+- AR generations always write their result into the target clips.
+
 ## [0.2.0]
 
 ### Added
-- Single generations stream: NOTES, TOK/S, CTX and the retry attempt update on the stats screen while it runs
-  (live progress needs a server with streamed progress; older servers fill the stats when done).
+- Single generations stream: NOTES, TOK/S, CTX and the retry attempt update on the stats screen while it runs.
 - The seed is a small screen: click to type a seed (digits only, 1–2147483647), **DICE** for a random one, **LOCK**
   to keep the last run's or the selected take's seed.
 - Panel images, path-traced in Blender from the same geometry: real shadows, glossy knobs.

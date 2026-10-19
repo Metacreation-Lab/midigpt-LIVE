@@ -14,10 +14,10 @@ The device is built by scripts: `tools/build_device.py` (re)builds `patchers/MID
 
 ## Running
 
-1. Start a server: `midigpt-http --pretrained yellow_medium --port 3456` in a venv with `midigpt[http,inference]` (or `install.sh --server`, see Deployment). A remote server works too; its URL goes in the device's SETUP page.
+1. Start a server: `midigpt-http --pretrained yellow_medium --port 3456` in a venv with `midigpt[http,inference]` (or `install.sh --server`, see Deployment). `midigpt-http --config models.yaml` serves several models (yellow_small / yellow_medium / prism_medium / expressive_medium), picked per request by the device's model menu. A remote server works too; its URL goes in the device's SETUP page.
 2. Rebuild (`python3 tools/build_device.py`) and drag `patchers/MIDI-GPT.amxd` onto a track in Live; click the key on the device to open the window.
 
-There are no automated tests. Use `tools/maxtool.py validate` for patches and the dev bridge for behaviour (both below).
+There are no automated tests. Use `tools/maxtool.py validate` for patches and the dev bridge for behaviour (both below). `tools/eval/` compares checkpoints (`model_eval.py`, `compare_models.py`) and Vary strategies (`vary_eval.py`) on GigaMIDI test pieces; `fir_eval.sh` / `fir_vary.sh` run them on the cluster. Cluster job specs live in `.prism/`, which is gitignored: never commit it.
 
 ## Architecture
 
@@ -38,9 +38,9 @@ media/panel/midigpt_*.png panel assets, path-traced in Blender (see Panel assets
 
 midigpt.js outlets: 0 → the window (`panel_state <json>`, `panel_notes <json>`), 1 → the dev bridge's `udpsend`, 2 → `node.script midigpt_node.js` (`open_tag`, `config_set`, `hello`, and HTTP: `http_body` / `http_send` / `http_abort`). Its inlet takes `panel <verb> ...` from the panel (`panel_message()`), `server_url <url>` from the address field, `tag_changed` (from `[r midigpt_tag_changed]`), and `config <key> <value>` / `config_ready` / `node_error` / `http_chunk` / `http_done` / `http_timeout` from the helper (`handle_message()`).
 
-**All HTTP goes through the Node helper, never Max's `XMLHttpRequest`.** A reply that reaches Max's XMLHttpRequest after its js object is freed (closing or switching sets, deleting the device, with a request in flight; the 15 s `/health` poll is usually in flight when the server is down) crashes Live, even after `abort()`. `new_request()` returns a `NodeRequest` with the subset of the XMLHttpRequest interface the code uses; bodies and replies travel in 4000-character chunks prefixed with `|` (so Max never reads a chunk as a number), and requests made before the helper says `config_ready` are queued (`init()` sends `hello` so a helper that started first answers again). A single generation (`num_candidates` 1) is sent with `stream: true`: the helper parses the server's event stream, forwards each notes/progress frame as `http_event <id> <|json>` (live NOTES, TOK/S, CTX and ATT on the stats screen, `panel_generation_progress`), and hands the final frame's response back as an ordinary reply. Progress frames need the server's `progress` field (MIDI-GPT branch `feat/http-stream-progress`); older servers still stream notes and fill the stats when done.
+**All HTTP goes through the Node helper, never Max's `XMLHttpRequest`.** A reply that reaches Max's XMLHttpRequest after its js object is freed (closing or switching sets, deleting the device, with a request in flight; the 15 s `/health` poll is usually in flight when the server is down) crashes Live, even after `abort()`. `new_request()` returns a `NodeRequest` with the subset of the XMLHttpRequest interface the code uses; bodies and replies travel in 16000-character chunks prefixed with `|` (under Max's ~32k-character message argument) (so Max never reads a chunk as a number), and requests made before the helper says `config_ready` are queued (`init()` sends `hello` so a helper that started first answers again). A single generation (`num_candidates` 1) is sent with `stream: true`: the helper parses the server's event stream, forwards the notes/progress frames as `http_event <id> <|json>` at most every 200 ms (live NOTES, TOK/S, CTX and ATT on the stats screen, `panel_generation_progress`), and hands the final frame's response back as an ordinary reply. In dev mode the helper also writes each request body and reply to `midigpt_requests/<request_id>.req.json` / `.resp.json` (gitignored): the place to look when a generation misbehaves (what controls were actually sent, what came back).
 
-The panel window is 960 x 640, split into region jsuis (top, roll, main, output, masks) so each repaints only when its own `regionKey()` changes; page backgrounds are fpics shown/hidden by page. The server address is a native `textedit` (`setup_url`) over the SETUP screen. Pushes start when the panel says `ready` (`panel_ready`).
+The panel window is 960 x 640, split into region jsuis (top, roll, main, output, masks) so each repaints only when its own `regionKey()` changes; the page background is one fpic (`bg_page`), switched by name when the panel sends `bg <page>`. The server address is a native `textedit` (`setup_url`) over the SETUP screen. Pushes start when the panel says `ready` (`panel_ready`), which it does on its first paint (the window is open). The TRACK and MASKS bays edit the track selected in Live (`panel_edit_track()`), not the painted one: the roll highlights it and the bay titles name it, with NOT GENERATED when it isn't a target.
 
 mgraphics gotchas met while building the panel: `image_surface_draw` paints through the current path and with the current source alpha (call `new_path()` and `set_source_rgba(1,1,1,1)` first); group alpha (`push_group`) shifts output, so dimmed parts are pre-dimmed sprites (`_aNN`); Max caches `require()`d modules, so edited modules are `include()`d; `open` is a built-in jsui message (never name a function `open`). Keep these scripts ES5.
 
@@ -48,9 +48,20 @@ Takes: before the first take is written, `snapshot_targets()` saves each target 
 
 Model facts the UI depends on: density is drum-only on the current checkpoints (the server 422s otherwise); pitch range only applies with scale lock on; remix replaces the rhythm grid; top-p must be in (0, 1].
 
+The families differ, and the device reads what a model takes from `/info?model=<id>` (refetched when the model menu changes):
+
+| | yellow (small, medium) | prism_medium | expressive_medium |
+|---|---|---|---|
+| Context (`model_dim_options`) | 4, 8 bars | 4, 8, 12, 16 | 4, 8, 12, 16 |
+| Context tokens | 2048 | 4096 | 4096 |
+| Track controls | density, min/max polyphony, min/max duration | key, pitch range, silence, min/max duration; bar-level density, polyphony and pitch-class set | as prism, plus NOMML |
+| Velocity / microtiming | fixed | fixed | switchable (on unless sent `false`) |
+
+`set_attr()` sends a control under the name `/info`'s `attributes` lists: a plain name goes in the track's `attributes`, a `bar_*` one in `bar_attributes`, once per generated bar; one the model lacks is left out. `controls.velocity` / `controls.microtiming` go only to a model whose capabilities say `switchable_velocity` / `switchable_microtiming` (the others reject microtiming), as an explicit bool from the ENGINE toggles (on by default).
+
 ### Server API (MIDI-GPT HTTP)
 
-`GET /health`, `GET /info` (capabilities, `model_dim_options`), `GET /models`, `POST /generate` (body: `score`, `request`, `request_id`, `model`), and `POST /generate/<id>/cancel`. `/health` is polled every 15 s.
+`GET /health`, `GET /info?model=<id>` (capabilities: `model_dim_options`, `max_context_tokens`, `switchable_velocity`, `switchable_microtiming`, `genres`; `attributes`; `resolution`), `GET /models`, `POST /generate` (body: `score`, `request`, `request_id`, `model`, `stream`), and `POST /generate/<id>/cancel`. `/health` is polled every 15 s, backing off to 60 s while the server doesn't answer. Progress frames carry `context_tokens` (the current step's prompt), `step_generated_tokens` and `generated_tokens` (the whole request); CTX is the first two summed, and the reply's `tokens.peak_context_tokens` at the end. Ignored tracks aren't in the prompt; replies come back at 1920 ticks per beat.
 
 ### Startup
 

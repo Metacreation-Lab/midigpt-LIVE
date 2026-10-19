@@ -1259,8 +1259,7 @@ function write_score_to_clips(score, ctx){
         var bar_len = b0.ts_numerator && b0.ts_denominator ? b0.ts_numerator / b0.ts_denominator * 4
                     : clip.get("signature_numerator")[0] / clip.get("signature_denominator")[0] * 4;
         var total_beats = bar_len * scoreBars.length;
-        // Only the bars this track asked to generate are written, so context stays exactly as it was whatever
-        // the server returns for it (servers before MIDI-GPT PR #11 could move a context bar's downbeat).
+        // Only the bars this track asked to generate are written, so context stays exactly as it was.
         // Adjacent bars are cleared in one call.
         var genBars = ctx.gen_bars && ctx.gen_bars[+t] ? ctx.gen_bars[+t].slice().sort(function (x, y) { return x - y; }) : null;
         if (genBars) {
@@ -2168,8 +2167,6 @@ function compute_track_controls(tparams){
 var RHYTHM_UNIT_Q = { whole: 4, half: 2, quarter: 1, quarter_triplet: 1 / 3, eighth: 0.5, eighth_triplet: 1 / 6, sixteenth: 0.25, sixteenth_triplet: 1 / 12 };
 
 // EXACT: one onset per lit step, at ticks of the server's resolution (/info), the downbeat always included.
-// EXACT on drum tracks needs a server with MIDI-GPT PR #12 (before it, the exact-rhythm forcer never counted
-// drum notes and piled them all onto tick 0 of one bar). nino runs it since 2026-10-16.
 function rhythm_mask_for(tparams){
     var unit = tparams.rhythm_unit || "sixteenth";
     if (!+tparams.rhythm_exact) return { grid: { unit: unit, strength: +tparams.rhythm_grid_strength || 0 } };
@@ -2245,7 +2242,7 @@ function build_request(){
     var reqControls = {};
     // Only a switchable checkpoint (expressive) takes these: it generates velocity and microtiming unless told
     // not to, so it gets the toggle as an explicit bool. Others 422 on microtiming and have no switch, so they
-    // get neither. /info reports the flags since MIDI-GPT #19.
+    // get neither. /info reports the flags.
     var caps = server_capabilities || {};
     if (caps.switchable_velocity) reqControls.velocity = !!global_params.velocity_enabled;
     if (caps.switchable_microtiming) reqControls.microtiming = !!global_params.microtiming_enabled;
@@ -2423,8 +2420,7 @@ function build_request(){
             write_original.push({ track: t, clip: newId, loop_end: +api.get("loop_end")[0], end_marker: +api.get("end_marker")[0], notes: [] });
         }
 
-        // Each bar's notes in time order (Live lists them by pitch): servers before MIDI-GPT PR #11 encode a
-        // bar's onsets in listed order and drop the downbeat of an unsorted bar.
+        // Each bar's notes in time order (Live lists them by pitch).
         for (var sb = 0; sb < midigptScore.tracks[t].bars.length; sb++) {
             midigptScore.tracks[t].bars[sb].notes.sort(function (a, b) { return a.onset_ticks - b.onset_ticks || a.pitch - b.pitch; });
         }

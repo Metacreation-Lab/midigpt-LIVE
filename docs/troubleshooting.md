@@ -34,8 +34,6 @@
 - **DENSITY** only works on drum tracks; **POLY** and **LENGTH** only on melodic tracks.
 - **REGISTER** only applies with **SCALE** on.
 - **REMIX** replaces the rhythm settings on the same track.
-- Writing a long track with **AR** can come back empty with the current models. Generate 8 bars at a time if that
-  happens.
 
 ## Files
 
