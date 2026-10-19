@@ -123,7 +123,7 @@ var S = {
 };
 var NOTESDATA = [];   // per track (S.tracks order), per bar
 var ui = { page: "main", scroll: { row: 0, bar: 0 }, anim: {}, press: null, takePage: 0,
-           setup: { sel: 0, picked: {}, scroll: 0, browseFam: null, wiz: null, resetArm: 0 }, editingUrl: false, flash: null, engList: "models", genreScroll: 0 };
+           setup: { sel: 0, picked: {}, scroll: 0, browseFam: null, wiz: null, resetArm: 0 }, editingUrl: false, flash: null, genreOpen: false };
 var errSeen = null;   // the fault the person has not cleared yet (cleared locally; a new one replaces it)
 
 var lastKey = null, notesVer = 0;
@@ -169,8 +169,8 @@ function regionKey() {
         case "top": return base;
         case "roll": return base + JSON.stringify([S.tracks, S.bars, S.ts, S.cur, S.gen.status, S.gen.takes, S.gen.cur, S.gen.picked, S.gen.dropped, S.engine.model, S.server.online, S.server.latency, S.scene]);
         case "main":
-            if (ui.page === "main") return base + JSON.stringify([S.tp, c ? [c.short, c.inst, isTarget(c)] : 0, S.sample, S.checks]);
-            if (ui.page === "engine") return base + JSON.stringify([S.engine, S.checks, S.server.caps, S.server.online, S.server.res, ui.engList, ui.genreScroll]);
+            if (ui.page === "main") return base + JSON.stringify([S.tp, c ? [c.short, c.inst, isTarget(c)] : 0, S.sample, S.checks, S.engine.genre, caps().genres, ui.genreOpen]);
+            if (ui.page === "engine") return base + JSON.stringify([S.engine, S.checks, S.server.caps, S.server.online, S.server.res]);
             return base + JSON.stringify([S.tracks, S.server.url, S.server.online, S.tagging]);
         case "output": return base + JSON.stringify([S.gen, S.sample.takes, S.err, S.server.online, S.engine.attempts]);
         case "masks": return base + JSON.stringify([S.masks, S.server.caps, S.ts, S.server.res, c ? [c.short, isTarget(c)] : 0]);
@@ -487,6 +487,49 @@ function seedKey(x, y, w, h, label, lit, onClick, enabled) {
     g.restore();
     if (enabled !== false && onClick) hit("key", x, y, w, h, { fn: onClick, x: x, y: y });
 }
+// ------------------------------------------------------------------ GENRE (prism / expressive): one setting for the whole request
+// A screen like SEED in the TRACK bay's top row: click it for the list (over the bay), or step with ◀ ▶ and the wheel.
+var genrePos = null;   // [cx, cy] from trackLayout(), null when the model has no genres
+function genres() { return caps().genres || []; }
+function genreName(id) { return id ? String(id).toUpperCase().replace(/[-_]/g, " ") : "NONE"; }
+function setGenre(id) { S.engine.genre = id || ""; send("engine", "genre", id || "none"); }
+function stepGenre(d) { var l = [""].concat(genres()), i = Math.max(0, l.indexOf(S.engine.genre || "")); setGenre(l[(i + d + l.length) % l.length]); }
+function drawGenre(cx, cy) {
+    var w = SEED_W, h = SEED_H, x = cx - w / 2, sy = cy - 17, id = S.engine.genre || "";
+    g.fillStyle = "#1B1B1B"; round(x - 2.6, sy - 2.6, w + 5.2, h + 5.2, 5); g.fill();
+    g.strokeStyle = "rgba(0,0,0,0.6)"; g.lineWidth = 1; round(x - 2.2, sy - 2.4, w + 4.4, h + 4.2, 4.6); g.stroke();
+    g.strokeStyle = "rgba(255,255,255,0.05)"; g.lineWidth = 0.8; round(x - 2.6, sy - 2.0, w + 5.2, h + 5.0, 5); g.stroke();
+    g.fillStyle = T.screenBg; round(x, sy, w, h, 3); g.fill();
+    if (ui.genreOpen) { g.strokeStyle = ACC; g.lineWidth = 1; round(x + 0.5, sy + 0.5, w - 1, h - 1, 2.6); g.stroke(); }
+    else { g.strokeStyle = "rgba(255,255,255,0.06)"; g.lineWidth = 0.8; round(x + 0.4, sy + 0.4, w - 0.8, h - 0.8, 2.6); g.stroke(); }
+    txt(x + 4, sy + 5.5, "ALL TRACKS", 4.6, rgba(HUD.g, 0.55), "left", 0.6);
+    txt(x + w / 2 - 3, sy + h / 2 + 2.2, genreName(id), fitSize(genreName(id), 7.2, 0.4, w - 18), id ? HUD.c : rgba(HUD.g, 0.75), "center", 0.4);
+    g.fillStyle = rgba(HUD.g, 0.7); g.beginPath(); g.moveTo(x + w - 9.6, sy + h / 2 + 0.1); g.lineTo(x + w - 4.4, sy + h / 2 + 0.1); g.lineTo(x + w - 7, sy + h / 2 + 3.1); g.closePath(); g.fill();
+    hit("genre", x, sy, w, h, {});
+    seedKey(x, sy + 24, 36, 13, "◀", false, function () { stepGenre(-1); });
+    seedKey(x + 40, sy + 24, 36, 13, "▶", false, function () { stepGenre(1); });
+    txt(cx, cy + 29.5, "GENRE", 6.8, LAB, "center", 1);
+}
+// the list: NONE and the model's genres in three columns, over the TRACK bay; a click outside closes it
+function drawGenreList() {
+    var bay = SP.pages.main.bays[0], x = bay[0] + 10, y = bay[1] + 26, w = bay[2] - 20, h = bay[3] - 34;
+    g.fillStyle = "#1B1B1B"; round(x - 2.6, y - 2.6, w + 5.2, h + 5.2, 5); g.fill();
+    g.fillStyle = T.screenBg; round(x, y, w, h, 3); g.fill();
+    g.strokeStyle = ACC; g.lineWidth = 1; round(x + 0.5, y + 0.5, w - 1, h - 1, 2.6); g.stroke();
+    hit("genre-list", x, y, w, h, {});
+    txt(x + 10, y + 11, "GENRE  ·  ALL TRACKS", 5.8, HUD.c, "left", 0.8);
+    txt(x + w - 10, y + 11, "CLICK OUTSIDE TO CLOSE", 5.4, rgba(HUD.g, 0.5), "right", 0.8);
+    var items = [""].concat(genres()), cols = 3, cw = (w - 16) / cols, rows = Math.ceil(items.length / cols);
+    var rh = Math.min(17, (h - 30) / rows), y0 = y + 24;
+    for (var i = 0; i < items.length; i++) {
+        var cx = x + 8 + (i % cols) * cw, yy = y0 + Math.floor(i / cols) * rh, sel = items[i] === (S.engine.genre || "");
+        if (sel) { g.fillStyle = rgba(HUD.c, 0.12); g.fillRect(cx, yy - 1, cw - 6, rh - 2); }
+        g.fillStyle = sel ? HUD.c : rgba(HUD.w, 0.25); g.beginPath(); g.arc(cx + 7, yy + rh / 2 - 1, sel ? 2.4 : 1.8, 0, Math.PI * 2); g.fill();
+        txt(cx + 15, yy + rh / 2 - 1, genreName(items[i]), 6.8, sel ? HUD.c : rgba(HUD.w, items[i] ? 0.8 : 0.5), "left", 0.7);
+        hit("genre-cell", cx, yy - 1, cw - 6, rh, { id: items[i] });
+    }
+}
+
 var SEED_W = 76, SEED_H = 20;
 function seedRect(cx, cy) { return [cx - SEED_W / 2, cy - 17, SEED_W, SEED_H]; }
 function drawSeed(cx, cy) {
@@ -697,19 +740,10 @@ function hudFault(x, y, w, h) {
     hit("err", x, y, w, h, {});
 }
 function hudModels(x, y, w, h) {
-    var l = S.server.online ? S.engine.models : [], genres = (caps().genres || []), gtab = ui.engList === "genre" && genres.length;
-    if (genres.length) {   // two tabs: the model list, and the genre list of a model that has one (prism, expressive)
-        var tabs = [["MODELS", "models", x + 10], ["GENRE", "genre", x + 56]];
-        for (var tb = 0; tb < 2; tb++) {
-            var on = (tabs[tb][1] === "genre") === !!gtab;
-            txt(tabs[tb][2], y + 11, tabs[tb][0], 5.8, on ? HUD.c : rgba(HUD.g, 0.6), "left", 0.8);
-            if (on) { g.fillStyle = HUD.c; g.fillRect(tabs[tb][2], y + 15, tabs[tb][0].length * 4.6, 1); }
-            hit("eng-tab", tabs[tb][2] - 4, y + 2, 44, 16, { tab: tabs[tb][1] });
-        }
-    } else txt(x + 10, y + 11, "MODELS", 5.8, rgba(HUD.g, 0.6), "left", 0.8);
-    var rh = 17, y0 = y + 22;
-    if (gtab) { hudGenres(x, y, w, h, genres, rh, y0); return; }
+    var l = S.server.online ? S.engine.models : [];
+    txt(x + 10, y + 11, "MODELS", 5.8, rgba(HUD.g, 0.6), "left", 0.8);
     txt(x + w - 10, y + 11, S.server.online ? l.length + " ON SERVER" : "NO LINK", 5.8, S.server.online ? rgba(HUD.g, 0.6) : HUD.a, "right", 0.8);
+    var rh = 17, y0 = y + 22;
     for (var i = 0; i < Math.min(5, l.length); i++) {
         var id = l[i], yy = y0 + i * rh, sel = id === S.engine.model;
         if (sel) { g.fillStyle = rgba(HUD.c, 0.10); g.fillRect(x + 4, yy - 1, w - 8, rh - 2); }
@@ -722,27 +756,6 @@ function hudModels(x, y, w, h) {
     txt(x + 10, iy, "CTX " + S.engine.dims.join("/") + " BARS  ·  RES " + (S.server.res || 12) + "/Q", 5.8, rgba(HUD.g, 0.7), "left", 0.6);
     var feats = [c.mask ? "SCALE" : null, c.rhythm ? "RHYTHM" : null, c.remix ? "REMIX" : null, c.vel ? "VELOCITY" : null, c.micro ? "MICROTIMING" : null].filter(function (s) { return s; });
     txt(x + 10, iy + 12, feats.join(" · "), 5.8, rgba(HUD.m, 0.85), "left", 0.6);
-}
-// The genre list: NONE plus the model's genres, as many rows as fit above the footer; the wheel scrolls it.
-function genreRows(h) { return Math.max(1, Math.floor((h - 22 - 8) / 17)); }
-function hudGenres(x, y, w, h, genres, rh, y0) {
-    var items = [""].concat(genres), n = genreRows(h), cur = S.engine.genre || "";
-    ui.genreScroll = Math.max(0, Math.min(ui.genreScroll || 0, items.length - n));
-    var s0 = ui.genreScroll;
-    txt(x + w - 10, y + 11, (cur ? cur.toUpperCase() : "NONE") + "  ·  " + (s0 + 1) + "–" + Math.min(items.length, s0 + n) + "/" + items.length,
-        5.8, rgba(HUD.g, 0.6), "right", 0.8);
-    for (var i = 0; i < n && s0 + i < items.length; i++) {
-        var id = items[s0 + i], yy = y0 + i * rh, sel = id === cur;
-        if (sel) { g.fillStyle = rgba(HUD.c, 0.10); g.fillRect(x + 4, yy - 1, w - 8, rh - 2); }
-        g.fillStyle = sel ? HUD.c : rgba(HUD.w, 0.25); g.beginPath(); g.arc(x + 12, yy + rh / 2 - 1, sel ? 2.6 : 2, 0, Math.PI * 2); g.fill();
-        txt(x + 22, yy + rh / 2 - 1, id ? id.toUpperCase().replace(/_/g, " ") : "NONE", 7.2, sel ? HUD.c : rgba(HUD.w, id ? 0.8 : 0.5), "left", 0.8);
-        hit("genre-row", x, yy - 1, w - 12, rh, { id: id });
-    }
-    if (items.length > n) {   // where the view is in the list
-        var th = Math.max(10, (h - 30) * n / items.length), ty = y0 + (h - 30 - th) * s0 / (items.length - n);
-        g.fillStyle = rgba(HUD.g, 0.15); g.fillRect(x + w - 7, y0, 2, h - 30);
-        g.fillStyle = rgba(HUD.c, 0.6); g.fillRect(x + w - 7, ty, 2, th);
-    }
 }
 // rhythm editor: GRID = soft pull toward the unit (strength); EXACT = the onsets per bar (first one fixed at the downbeat)
 function rhythmGrid() {
@@ -908,7 +921,10 @@ function trackLayout() {
     var extra = ["KEY", "RANGE", "SILENCE", "PCS", "EXPRESSIVENESS"];
     for (n = 0; n < extra.length; n++) if (KNOBS[extra[n]].show()) row2.push(extra[n]);
     if (row2.length) c1 = spec.POLY[2];
-    for (var i = 0; i < row1.length; i++) out.push([row1[i], Math.round(bx + bw * (i + 0.5) / row1.length), c1, 26]);
+    // GENRE (prism / expressive): a screen in the top row's last column
+    var cols = row1.length + (genres().length ? 1 : 0);
+    genrePos = genres().length ? [Math.round(bx + bw * (cols - 0.5) / cols), c1] : null;
+    for (var i = 0; i < row1.length; i++) out.push([row1[i], Math.round(bx + bw * (i + 0.5) / cols), c1, 26]);
     for (i = 0; i < row2.length; i++) out.push([row2[i], Math.round(bx + bw * (i + 0.5) / row2.length), spec.KEY[2], spec.KEY[3]]);
     return out;
 }
@@ -963,10 +979,13 @@ function paintMain(sp) {
     var tk = ui.page === "main" ? trackLayout() : null;
     for (i = 0; i < page.knobs.length; i++) { var k = page.knobs[i]; if (k[0] === "SEED") { drawSeed(k[1], k[2]); continue; } if (!(tk && TRACK_KNOBS[k[0]])) drawKnob(KNOBS[k[0]], k[0], k[1], k[2], k[3]); }
     if (tk && c) for (i = 0; i < tk.length; i++) drawKnob(KNOBS[tk[i][0]], tk[i][0], tk[i][1], tk[i][2], tk[i][3]);
+    if (!tk || !c || !genrePos) ui.genreOpen = false;
+    if (tk && c && genrePos) drawGenre(genrePos[0], genrePos[1]);
     for (i = 0; i < page.toggles.length; i++) { var tg = page.toggles[i]; if (TOGGLES[tg[0]]) drawToggle(TOGGLES[tg[0]], tg[0], tg[1], tg[2], tg[3], tg[4]); }
     for (i = 0; i < page.keys.length; i++) setupKey(page.keys[i]);
     var HS = { models: hudModels, server: hudServer, tracks: hudTracks, browser: hudBrowser };
     for (i = 0; i < page.screens.length; i++) { var sc = page.screens[i]; HS[sc[0]](sc[1], sc[2], sc[3], sc[4]); }
+    if (ui.genreOpen) drawGenreList();   // over the TRACK bay, on top of everything
 }
 function paintOutput() {
     var i, O = SP.output, G = S.gen, nTk = G.takes.length;
@@ -1073,6 +1092,9 @@ function onclick(x, y, button, cmd, shift, caps_, opt) {
     var h = find(x, y);
     drag = null;
     if (!h || h.kind !== "url") urlEdit(false, true);   // a click anywhere else closes the address field
+    if (ui.genreOpen && !(h && (h.kind === "genre" || h.kind === "genre-cell" || h.kind === "genre-list"))) {
+        ui.genreOpen = false; redraw(); lastKey = regionKey(); return;
+    }
     if (!h) return;
     var t, d;
     if (h.kind === "knob") {
@@ -1110,8 +1132,8 @@ function onclick(x, y, button, cmd, shift, caps_, opt) {
     else if (h.kind === "setup-scroll") { drag = { ss: h.d }; scrollTo(h.d, y); }
     else if (h.kind === "err") { errSeen = null; send("clear_fault"); }
     else if (h.kind === "model-row") { S.engine.model = h.d.id; send("engine", "model", h.d.id); }
-    else if (h.kind === "eng-tab") { ui.engList = h.d.tab; }
-    else if (h.kind === "genre-row") { S.engine.genre = h.d.id; send("engine", "genre", h.d.id || "none"); }
+    else if (h.kind === "genre") { ui.genreOpen = !ui.genreOpen; }
+    else if (h.kind === "genre-cell") { setGenre(h.d.id); ui.genreOpen = false; }
     else if (h.kind === "rhythm-tab") { S.masks.exact = h.d.exact; send("mask", "exact", h.d.exact); }
     else if (h.kind === "rhythm-cell") {
         var R = rhythmGrid(), pv = R.pat[h.d.i];
@@ -1201,7 +1223,7 @@ var wheelAcc = { x: 0, y: 0 };
 function onwheel(x, y, wx, wy, button, cmd, shift) {
     x += RX[0]; y += RX[1];
     if (shift && !wx) { wx = wy; wy = 0; }
-    var before = ui.scroll.row + "," + ui.scroll.bar + "," + ui.setup.scroll + "," + ui.genreScroll;
+    var before = ui.scroll.row + "," + ui.scroll.bar + "," + ui.setup.scroll + "," + S.engine.genre;
     wheelAcc.x += wx; wheelAcc.y += wy;
     var whole = function (v) { return v < 0 ? Math.ceil(v) : Math.floor(v); };
     var dx = whole(wheelAcc.x), dy = whole(wheelAcc.y);
@@ -1210,10 +1232,10 @@ function onwheel(x, y, wx, wy, button, cmd, shift) {
         ui.scroll.row -= dy; ui.scroll.bar -= dx; clampScroll();
     } else if (find(x, y, "setup-row") || find(x, y, "setup-scroll")) {
         ui.setup.scroll = Math.max(0, Math.min((ui.setup.scroll || 0) - dy, S.tracks.length - 7));   // 7 rows: hudSetup
-    } else if (find(x, y, "genre-row")) {
-        ui.genreScroll = Math.max(0, (ui.genreScroll || 0) - dy);   // hudGenres clamps the end
+    } else if (dy && find(x, y, "genre")) {
+        stepGenre(dy > 0 ? -1 : 1);
     } else { wheelAcc.x = wheelAcc.y = 0; return; }
-    if (before === ui.scroll.row + "," + ui.scroll.bar + "," + ui.setup.scroll + "," + ui.genreScroll) return;
+    if (before === ui.scroll.row + "," + ui.scroll.bar + "," + ui.setup.scroll + "," + S.engine.genre) return;
     redraw();
     lastKey = regionKey();
 }

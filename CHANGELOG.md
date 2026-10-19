@@ -11,7 +11,8 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
   them, and context windows up to 16 bars.
 - **PROB** (SAMPLE): regenerate only a random share of the painted bars; the rest stay as context, and the roll
   dims the bars left out.
-- **EXPRESSIVENESS** (TRACK, expressive) and **GENRE** (ENGINE, prism and expressive: a tab over the model list).
+- **EXPRESSIVENESS** (TRACK, expressive) and **GENRE** (prism and expressive: a screen in the TRACK bay's top row,
+  for the whole request; click it for the list, or step with ◀ ▶ and the wheel).
 - Partial AR: click a bar of an AR track to start writing there; the bars before it are its history.
 - The roll and the SETUP list scroll with the mouse wheel and the trackpad.
 - The track the TRACK and MASKS controls edit is highlighted in the roll and named in the bay titles, with a

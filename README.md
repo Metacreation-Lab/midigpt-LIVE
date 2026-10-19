@@ -186,6 +186,7 @@ The server can run on another computer, such as a studio machine with more power
 | **DENSITY** | how busy the part is (drum tracks) |
 | **KEY · RANGE · SILENCE · PCS** | prism and expressive: key, pitch range, silent share of each bar, pitch classes per bar |
 | **EXPRESSIVENESS** | expressive: how loosely the notes sit on the beat, from on the grid to freely timed |
+| **GENRE** | prism and expressive: the style to write in, for the whole request; click for the list, or ◀ ▶ |
 
 **SAMPLE**, for the whole request.
 

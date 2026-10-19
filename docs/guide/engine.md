@@ -7,7 +7,6 @@ The **ENGINE** key at the top right opens the model and how it generates. These 
 | Control | Range (default) | What it does |
 |---|---|---|
 | **Models** | the server's list | which model to use, when the server offers several |
-| **GENRE** | NONE, or the model's genres | prism and expressive: the style to write in; the **GENRE** tab over the model list opens the list (scroll with the wheel) |
 | **CONTEXT** | the model's options (AUTO) | how many bars the model sees at once |
 | **BARS/STEP** | 1 to CONTEXT (AUTO) | how many bars are generated per step |
 | **TRK/STEP** | 1–16 (AUTO) | how many tracks are generated per step |

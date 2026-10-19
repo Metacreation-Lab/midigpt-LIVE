@@ -22,6 +22,10 @@ Prism and expressive models add a second row:
 | **PCS** | 1–12, or AUTO | how many different pitch classes each bar uses (melodic tracks) |
 | **EXPRESSIVENESS** | GRID, 1–11, FREE, or AUTO | expressive only: how loosely the notes sit on the beat, from on the grid to freely timed |
 
+**GENRE** sits in the top row with prism and expressive models: the style to write in, for every track of the request
+(the screen says ALL TRACKS). Click the screen for the list of the model's genres (NONE leaves it to the model; a click
+outside closes the list), or step through them with ◀ ▶ or the mouse wheel.
+
 **AUTO** leaves the choice to the model, reading it from the context.
 
 ## Using the knobs

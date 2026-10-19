@@ -55,7 +55,7 @@ The families differ, and the device reads what a model takes from `/info?model=<
 | Context (`model_dim_options`) | 4, 8 bars | 4, 8, 12, 16 | 4, 8, 12, 16 |
 | Context tokens | 2048 | 4096 | 4096 |
 | Track controls | density, min/max polyphony, min/max duration | key, pitch range, silence, min/max duration; bar-level density, polyphony and pitch-class set | as prism, plus NOMML (EXPRESSIVENESS) |
-| Genre (`controls.genre`, ENGINE's GENRE tab) | – | 18 (`capabilities.genres`) | 18 |
+| Genre (`controls.genre`, the GENRE screen in the TRACK bay) | – | 18 (`capabilities.genres`) | 18 |
 | Velocity / microtiming | fixed | fixed | switchable (on unless sent `false`) |
 
 `set_attr()` sends a control under the name `/info`'s `attributes` lists: a plain name goes in the track's `attributes`, a `bar_*` one in `bar_attributes`, once per generated bar; one the model lacks is left out. `controls.velocity` / `controls.microtiming` go only to a model whose capabilities say `switchable_velocity` / `switchable_microtiming` (the others reject microtiming), as an explicit bool from the ENGINE toggles (on by default).
