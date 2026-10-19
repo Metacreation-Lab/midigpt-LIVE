@@ -17,6 +17,7 @@ lists the current targets (`TGT LEAD (AR)`), or says **PAINT BARS** when there a
 | **AR** | write the whole track (autoregressive), including a track with no clip in this scene yet; it then gets one |
 | Click a bar of an **AR** track | start writing there: the bars before it are kept as the track's own history (an orange notch marks the start). Click it again to start from bar 1 |
 | **IG** | ignore the track: it is neither written nor used as context |
+| A name struck through in amber | the server left that track out of the context so every step fit (see [Engine](engine.md)); it shows until the next run |
 | Click a track name | select it, for the [TRACK](track.md) and [MASKS](masks.md) controls |
 
 Painting bars on an ignored track switches it off; on an **AR** track a click sets where it starts. To paint bars on

@@ -18,6 +18,8 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
   warning when it isn't being generated.
 
 ### Changed
+- **CONTEXT**, **BARS/STEP** and **TRK/STEP** on AUTO are left to the server: windows that follow the painted bars,
+  context tracks left out when a step would not fit (struck through in the roll), then smaller steps.
 - **VELOCITY** and **MICRO** are on by default and apply to models that can switch them (expressive).
 - Track controls are sent under the names each model uses (bar-level density, polyphony and pitch-class set on
   prism and expressive).

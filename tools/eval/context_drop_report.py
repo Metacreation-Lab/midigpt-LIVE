@@ -25,9 +25,10 @@ def main():
     errors = [r for r in rows if r.get("policy") == "_error"]
     rows = [r for r in rows if not r.get("policy", "_").startswith("_") and r.get("nll") is not None]
     for r in rows:
-        span = r["nll_none"] - r["nll_full"]
+        # nll_full is None when the full step does not fit the model (only the real budget is scored then)
+        span = r["nll_none"] - r["nll_full"] if r["nll_full"] is not None else 0
         r["kept"] = (r["nll_none"] - r["nll"]) / span if span >= MIN_SPAN else None
-        r["dnll"] = (r["nll"] - r["nll_full"]) / r["cont"]
+        r["dnll"] = (r["nll"] - (r["nll_full"] if r["nll_full"] is not None else r["nll_none"])) / r["cont"]
         r["kind"] = ("cont" if r["ar"] else "fill") + ("_drum" if r["drums"] else "_mel")
     print("# Context-drop policies\n")
     print(f"{len({(r['piece'], r['task'], r['model'], r['dim']) for r in rows})} cases, {len(errors)} errors.\n")

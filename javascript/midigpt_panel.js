@@ -167,7 +167,7 @@ function regionKey() {
     var c = cur(), base = ui.page + "|";
     switch (REGION) {
         case "top": return base;
-        case "roll": return base + JSON.stringify([S.tracks, S.bars, S.ts, S.cur, S.gen.status, S.gen.takes, S.gen.cur, S.gen.picked, S.engine.model, S.server.online, S.server.latency, S.scene]);
+        case "roll": return base + JSON.stringify([S.tracks, S.bars, S.ts, S.cur, S.gen.status, S.gen.takes, S.gen.cur, S.gen.picked, S.gen.dropped, S.engine.model, S.server.online, S.server.latency, S.scene]);
         case "main":
             if (ui.page === "main") return base + JSON.stringify([S.tp, c ? [c.short, c.inst, isTarget(c)] : 0, S.sample, S.checks]);
             if (ui.page === "engine") return base + JSON.stringify([S.engine, S.checks, S.server.caps, S.server.online, S.server.res, ui.engList, ui.genreScroll]);
@@ -586,7 +586,10 @@ function hudRoll(x, y, w, h) {
         }
         if (tgt) { g.fillStyle = tc; g.beginPath(); g.moveTo(x + 12, yy + rh / 2 - 3); g.lineTo(x + 17, yy + rh / 2); g.lineTo(x + 12, yy + rh / 2 + 3); g.closePath(); g.fill(); }
         else { g.strokeStyle = rgba(HUD.w, 0.4 * a); g.lineWidth = 0.8; g.beginPath(); g.arc(x + 14.5, yy + rh / 2, 2.2, 0, Math.PI * 2); g.stroke(); }
-        txt(x + 22, yy + rh / 2, t.short, fitSize(t.short, rh < 22 ? 7.5 : 8.5, 1, 40), tgt ? tc : rgba(HUD.w, 0.75 * a), "left", 1);
+        // context the server left out of the last generation so every step fit: amber, struck through
+        var dropped = !streaming && S.gen.dropped && S.gen.dropped.indexOf(t.i) >= 0, ns = fitSize(t.short, rh < 22 ? 7.5 : 8.5, 1, 40);
+        txt(x + 22, yy + rh / 2, t.short, ns, tgt ? tc : dropped ? rgba(HUD.a, 0.8) : rgba(HUD.w, 0.75 * a), "left", 1);
+        if (dropped) { g.strokeStyle = rgba(HUD.a, 0.8); g.lineWidth = 1; g.beginPath(); g.moveTo(x + 21, yy + rh / 2); g.lineTo(x + 22 + Math.min(40, t.short.length * ns * 0.8), yy + rh / 2); g.stroke(); }
         hit("roll-name", x + 18, yy, 44, rh, { t: t });
         var sw = [["AR", x + 64, t.ar, HUD.a, "roll-ar"], ["IG", x + 84, t.ig, HUD.w, "roll-ig"]];
         for (var s = 0; s < 2; s++) {

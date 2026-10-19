@@ -943,6 +943,11 @@ function array_max(arr){
     for (var i = 1; i < arr.length; i++) if (arr[i] > m) m = arr[i];
     return m;
 }
+function array_min(arr){
+    var m = arr[0];
+    for (var i = 1; i < arr.length; i++) if (arr[i] < m) m = arr[i];
+    return m;
+}
 
 // maxAvailableBars (optional): the actual bar count Auto mode should fit
 // within -- model_dim is a fixed generation WINDOW, not a required exact
@@ -2190,9 +2195,7 @@ function rhythm_mask_for(tparams){
 function build_config(nBarsForFit){
     var effectiveModelDim = effective_model_dim(nBarsForFit);
 
-    // "Auto" mode: bars/step auto = the full current context size;
-    // tracks/step auto = every MIDI track currently in the project, so
-    // nothing gets excluded regardless of how many tracks exist.
+    // fixed values (an AUTO one is sent as "auto"): bars/step at most the window
     var effectiveBarsPerStep = global_params.bars_per_step_auto
         ? effectiveModelDim
         : Math.min(global_params.bars_per_step, effectiveModelDim);
@@ -2200,11 +2203,13 @@ function build_config(nBarsForFit){
         ? Math.max(1, track_ids.length)
         : global_params.tracks_per_step;
 
+    // AUTO is the server's to decide: it places the windows on the targets, leaves out the context tracks the
+    // model needs least when a step would not fit, and makes auto steps smaller before shrinking the window
     var cfg = {
         temperature: global_params.temperature,
-        model_dim: effectiveModelDim,
-        bars_per_step: effectiveBarsPerStep,
-        tracks_per_step: effectiveTracksPerStep,
+        model_dim: global_params.model_dim_auto ? "auto" : effectiveModelDim,
+        bars_per_step: global_params.bars_per_step_auto ? "auto" : effectiveBarsPerStep,
+        tracks_per_step: global_params.tracks_per_step_auto ? "auto" : effectiveTracksPerStep,
         shuffle: !!global_params.shuffle,
         mask_mode: server_capabilities.supports_token_mask ? "token" : "attention",
         max_attempts: global_params.max_attempts,
@@ -2344,8 +2349,9 @@ function build_request(){
     // user manually chose a model_dim bigger than what's available, refuse
     // here with a clear message instead of sending a request guaranteed to
     // fail.
-    if (nBars < midigptRequest.config.model_dim) {
-        var dimErr = "Not enough bars to generate: " + nBars + " available, need at least model_dim=" + midigptRequest.config.model_dim + ".";
+    var minDim = midigptRequest.config.model_dim === "auto" ? array_min(model_dim_options()) : midigptRequest.config.model_dim;
+    if (nBars < minDim) {
+        var dimErr = "Not enough bars to generate: " + nBars + " available, need at least model_dim=" + minDim + ".";
         report_error(dimErr);
         return false;
     }
@@ -2488,7 +2494,7 @@ function build_request(){
         var tc = midigptRequest.tracks[ti].controls;
         if (tc && (tc.remix || (tc.rhythm_mask && tc.rhythm_mask.positions))) { anyRemix = true; break; }
     }
-    if (anyRemix && midigptRequest.config.tracks_per_step !== 1) {
+    if (anyRemix && midigptRequest.config.tracks_per_step !== 1 && midigptRequest.config.tracks_per_step !== "auto") {   // auto: the server does it
         flog("build_request: remix active on at least one track -- forcing tracks_per_step=1");
         midigptRequest.config.tracks_per_step = 1;
     }

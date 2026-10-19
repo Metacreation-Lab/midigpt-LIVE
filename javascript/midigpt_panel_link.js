@@ -16,7 +16,7 @@ var panel_scene_cache = null;
 var panel_fault_state = null;    // {id, code, cause, action, warn, notSent, retry}
 var panel_fault_seq = 0;
 var panel_fault_fresh = false;   // a structured fault was just set: report_error() should not overwrite it
-var panel_gen = { t0: 0, elapsed: 0, notes: 0, seed: 0, att: 0, tps: 0, ctx: 0, maxctx: 0, picked: null };
+var panel_gen = { t0: 0, elapsed: 0, notes: 0, seed: 0, att: 0, tps: 0, ctx: 0, maxctx: 0, picked: null, dropped: [] };
 
 function schedule_panel(){
     if (!panel_ready || panel_task) return;
@@ -221,7 +221,7 @@ function panel_gen_state(){
     return { status: status, t0: active_generation ? active_generation.started_at : 0, elapsed: panel_gen.elapsed, notes: panel_gen.notes,
              seed: panel_gen.seed, att: panel_gen.att, tps: panel_gen.tps, ctx: panel_gen.ctx, maxctx: panel_gen.maxctx,
              takes: takes, cur: last_generation ? last_generation.selected : -1, orig: last_generation && last_generation.original ? 1 : 0,
-             picked: panel_gen.picked };
+             picked: panel_gen.picked, dropped: panel_gen.dropped || [] };
 }
 
 // ------------------------------------------------------------------ faults (shown on the OUTPUT screen)
@@ -303,6 +303,7 @@ function panel_generation_done(result){
         if (result.truncated) trunc = true;
     }
     panel_gen.notes = written;
+    panel_gen.dropped = (result.dropped_context || []).map(Number);   // context the server left out so every step fit
     var tok = result.tokens || {}, tim = result.timing || {};
     var gen = +(tok.generated_tokens || tim.gen_count || 0), secs = +(tim.model_forward_s || 0);
     panel_gen.tps = +tok.tokens_per_second || (gen && secs ? gen / secs : 0);
@@ -344,7 +345,7 @@ function panel_message(a){
             return;
         case "generate":
             panel_fault_state = null;
-            panel_gen = { t0: Date.now(), elapsed: 0, notes: 0, seed: 0, att: 0, tps: 0, ctx: 0, maxctx: 0, picked: null };
+            panel_gen = { t0: Date.now(), elapsed: 0, notes: 0, seed: 0, att: 0, tps: 0, ctx: 0, maxctx: 0, picked: null, dropped: [] };
             bang();
             break;
         case "cancel": http_cancel(); break;
