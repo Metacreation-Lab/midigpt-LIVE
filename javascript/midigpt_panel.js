@@ -169,11 +169,11 @@ function regionKey() {
         case "top": return base;
         case "roll": return base + JSON.stringify([S.tracks, S.bars, S.ts, S.cur, S.gen.status, S.gen.takes, S.gen.cur, S.engine.model, S.server.online, S.server.latency, S.scene]);
         case "main":
-            if (ui.page === "main") return base + JSON.stringify([S.tp, c ? [c.short, c.inst] : 0, S.sample, S.checks]);
+            if (ui.page === "main") return base + JSON.stringify([S.tp, c ? [c.short, c.inst, isTarget(c)] : 0, S.sample, S.checks]);
             if (ui.page === "engine") return base + JSON.stringify([S.engine, S.checks, S.server.caps, S.server.online, S.server.res]);
             return base + JSON.stringify([S.tracks, S.server.url, S.server.online, S.tagging]);
         case "output": return base + JSON.stringify([S.gen, S.sample.takes, S.err, S.server.online, S.engine.attempts]);
-        case "masks": return base + JSON.stringify([S.masks, S.server.caps, S.ts, S.server.res, c ? c.short : 0]);
+        case "masks": return base + JSON.stringify([S.masks, S.server.caps, S.ts, S.server.res, c ? [c.short, isTarget(c)] : 0]);
     }
     return Math.random();
 }
@@ -517,9 +517,9 @@ function seed_key(k) {
     outlet(0, "seed_set", b);
 }
 
-function bayTitle(x, y, w, title, sub) {
+function bayTitle(x, y, w, title, sub, subCol) {
     txt(x + 14, y + 14, title, 7.5, T.title, "left", 1.6);
-    if (sub) txt(x + w - 14, y + 14, sub, 6.6, INK, "right", 1.2);
+    if (sub) txt(x + w - 14, y + 14, sub, 6.6, subCol || INK, "right", 1.2);
 }
 
 // ------------------------------------------------------------------ HUD: piano roll
@@ -569,7 +569,11 @@ function hudRoll(x, y, w, h) {
     for (var j = 0; j < n; j++) {
         var i = r0 + j, t = S.tracks[i], yy = top + j * (rh + 3), tgt = isTarget(t), a = t.ig ? 0.3 : 1, sel = t.i === S.cur, ar = t.ar && !t.ig;
         var tc = ar ? HUD.a : HUD.c;
-        if (sel) { g.fillStyle = rgba(HUD.c, 0.07); g.fillRect(x + 6, yy - 1, gx - x - 10, rh + 2); }
+        if (sel) {   // the track the TRACK and MASKS knobs edit
+            g.fillStyle = rgba(HUD.c, 0.16); g.fillRect(x + 6, yy - 1, gx - x - 10, rh + 2);
+            g.fillStyle = HUD.c; g.fillRect(x + 6, yy - 1, 2, rh + 2);
+            g.strokeStyle = rgba(HUD.c, 0.55); g.lineWidth = 1; g.strokeRect(x + 6.5, yy - 0.5, gx + gw - x - 6, rh + 1);
+        }
         if (tgt) { g.fillStyle = tc; g.beginPath(); g.moveTo(x + 12, yy + rh / 2 - 3); g.lineTo(x + 17, yy + rh / 2); g.lineTo(x + 12, yy + rh / 2 + 3); g.closePath(); g.fill(); }
         else { g.strokeStyle = rgba(HUD.w, 0.4 * a); g.lineWidth = 0.8; g.beginPath(); g.arc(x + 14.5, yy + rh / 2, 2.2, 0, Math.PI * 2); g.stroke(); }
         txt(x + 22, yy + rh / 2, t.short, fitSize(t.short, rh < 22 ? 7.5 : 8.5, 1, 40), tgt ? tc : rgba(HUD.w, 0.75 * a), "left", 1);
@@ -897,10 +901,14 @@ function paintTop() {
 function paintMain(sp) {
     var i, page = SP.pages[sp], c = cur();
     for (i = 0; i < page.bays.length; i++) {
-        var b = page.bays[i], sub = null;
-        if (b[4] === "TRACK") sub = c ? c.short + " · " + (curKind() === "drums" ? "DRUMS" : "MELODIC") : "NO TRACK";
+        var b = page.bays[i], sub = null, subCol = null;
+        // the knobs edit the track selected in Live, which need not be one being generated: say which, loudly
+        if (b[4] === "TRACK") {
+            sub = c ? "EDITING " + c.short + " · " + (curKind() === "drums" ? "DRUMS" : "MELODIC") : "NO TRACK";
+            if (c && !isTarget(c)) { sub = "EDITING " + c.short + " · NOT GENERATED"; subCol = ACC; }
+        }
         if (b[4] === "SAMPLE") sub = "ALL TARGETS";
-        bayTitle(b[0], b[1], b[2], b[4], sub);
+        bayTitle(b[0], b[1], b[2], b[4], sub, subCol);
     }
     var tk = ui.page === "main" ? trackLayout() : null;
     for (i = 0; i < page.knobs.length; i++) { var k = page.knobs[i]; if (k[0] === "SEED") { drawSeed(k[1], k[2]); continue; } if (!(tk && TRACK_KNOBS[k[0]])) drawKnob(KNOBS[k[0]], k[0], k[1], k[2], k[3]); }
@@ -941,7 +949,8 @@ function paintOutput() {
 }
 function paintMasks() {
     var i, E = SP.extras, c = cur();
-    bayTitle(E.bay[0], E.bay[1], E.bay[2], "MASKS", "PITCH · RHYTHM · REMIX · " + (c ? c.short : "—"));
+    bayTitle(E.bay[0], E.bay[1], E.bay[2], "MASKS", "PITCH · RHYTHM · REMIX · " + (c ? c.short + (isTarget(c) ? "" : " · NOT GENERATED") : "—"),
+             c && !isTarget(c) ? ACC : null);
     for (i = 0; i < E.toggles.length; i++) { var et = E.toggles[i]; drawToggle(TOGGLES[et[0]], et[0], et[1], et[2], et[3], et[4]); }
     for (i = 0; i < E.knobs.length; i++) { var ek = E.knobs[i]; drawKnob(KNOBS[ek[0]], ek[0], ek[1], ek[2], ek[3]); }
     hudRhythm(E.rhythm[0], E.rhythm[1], E.rhythm[2], E.rhythm[3]);

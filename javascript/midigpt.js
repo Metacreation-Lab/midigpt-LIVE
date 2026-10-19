@@ -502,8 +502,8 @@ var global_params = {
     temp_esc_auto: true,
     seed_auto: true,
     // Top-level request.controls -- see build_request():
-    velocity_enabled: false,
-    microtiming_enabled: false,
+    velocity_enabled: true,      // on: what a switchable checkpoint (expressive) does by default
+    microtiming_enabled: true,
     genre: "",
     server_url: SERVER_URL
 }
@@ -2243,8 +2243,12 @@ function build_request(){
     // than sending false/null, so checkpoints without the relevant tokens
     // (switchable_velocity/microtiming, genre_groups) never see them.
     var reqControls = {};
-    if (global_params.velocity_enabled) reqControls.velocity = true;
-    if (global_params.microtiming_enabled) reqControls.microtiming = true;
+    // Only a switchable checkpoint (expressive) takes these: it generates velocity and microtiming unless told
+    // not to, so it gets the toggle as an explicit bool. Others 422 on microtiming and have no switch, so they
+    // get neither. /info reports the flags since MIDI-GPT #19.
+    var caps = server_capabilities || {};
+    if (caps.switchable_velocity) reqControls.velocity = !!global_params.velocity_enabled;
+    if (caps.switchable_microtiming) reqControls.microtiming = !!global_params.microtiming_enabled;
     if (global_params.genre) reqControls.genre = global_params.genre;
     if (reqControls.velocity !== undefined || reqControls.microtiming !== undefined || reqControls.genre !== undefined) {
         midigptRequest.controls = reqControls;

@@ -279,7 +279,9 @@ function panel_generation_progress(ev){
     if (p.attempt && p.attempt !== panel_gen.att) { panel_gen.att = +p.attempt; panel_gen.notes = 0; }   // a retry starts over
     panel_gen.notes += +ev.n || 0;
     if (p.generated_tokens && p.model_forward_s) panel_gen.tps = p.generated_tokens / p.model_forward_s;
-    if (p.context_tokens) panel_gen.ctx = +p.context_tokens + (+p.generated_tokens || 0);
+    // the step's prompt plus what this step generated; generated_tokens counts every step, so servers without
+    // step_generated_tokens (MIDI-GPT #14) read past the context once a request runs in several windows
+    if (p.context_tokens) panel_gen.ctx = +p.context_tokens + (+(p.step_generated_tokens !== undefined ? p.step_generated_tokens : p.generated_tokens) || 0);
     if (p.max_context_tokens) panel_gen.maxctx = +p.max_context_tokens;
     schedule_panel();
 }
@@ -303,7 +305,8 @@ function panel_generation_done(result){
     var tok = result.tokens || {}, tim = result.timing || {};
     var gen = +(tok.generated_tokens || tim.gen_count || 0), secs = +(tim.model_forward_s || 0);
     panel_gen.tps = +tok.tokens_per_second || (gen && secs ? gen / secs : 0);
-    panel_gen.ctx = +(tok.context_tokens || 0) + gen;          // the model's window: the prompt plus what it generated
+    // the fullest the model's window got in any step (older servers: the last prompt plus everything generated)
+    panel_gen.ctx = tok.peak_context_tokens !== undefined ? +tok.peak_context_tokens : +(tok.context_tokens || 0) + gen;
     panel_gen.maxctx = +(tok.max_context_tokens || 0);
     if (result.attempts) panel_gen.att = +result.attempts;   // servers before the attempts field leave it as it was
     if (failed && ok) panel_fault("TAKES LOST", failed + " OF " + (ok + failed) + " TAKES FAILED CHECKS", ok + " TAKES READY", { warn: 1, noReport: true });
