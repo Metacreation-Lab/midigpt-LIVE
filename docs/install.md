@@ -58,7 +58,7 @@ Options go after `bash -s --`, for example `… | bash -s -- --no-server`:
 3. **MIDI-GPT:**
 
     ```bash
-    pip install "midigpt[http,inference]==0.3.4"
+    pip install "midigpt[http,inference]==0.3.5"
     ```
 
     On an Intel Mac, add `"torch<2.3" "numpy<2"` (the last PyTorch built for Intel Macs).
