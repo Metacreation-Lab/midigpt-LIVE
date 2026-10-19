@@ -14,7 +14,7 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
 ### Changed
 - The **Start MIDI-GPT Server** window stays open when the server stops on an error, so its message can be read.
 - **NO LINK** points to the server window, which says why a server stopped.
-- The server is midigpt 0.3.5: it says plainly when the model is gated, and a model downloaded before keeps
+- The server is midigpt 0.4.0: it says plainly when the model is gated, and a model downloaded before keeps
   working when Hugging Face refuses or can't be reached.
 
 ## [0.2.0]

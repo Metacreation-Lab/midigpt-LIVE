@@ -32,7 +32,7 @@ the bars you choose, and writes the result back as takes you can audition, rever
 | **Ableton Live** | 11 or 12: Suite, or Standard with the Max for Live add-on |
 | **Max** | the Max bundled with Live: 8.6 (Live 11 to 12.1) or 9 (Live 12.2 and later) |
 | **System** | macOS. The installer also runs on Linux; on Windows, install by hand. |
-| **Server** | Python 3.10–3.12 and `midigpt` 0.3.5, which the installer sets up |
+| **Server** | Python 3.10–3.12 and `midigpt` 0.4.0, which the installer sets up |
 | **Disk** | about 1 GB for the server, plus the model: 83 MB (`yellow_small`) or 350 MB (`yellow_medium`) |
 
 ## Watch the full trailer
