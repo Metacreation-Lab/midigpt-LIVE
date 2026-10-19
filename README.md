@@ -30,6 +30,7 @@ Companion project: [MIDI-GPT for REAPER](https://github.com/Metacreation-Lab/mid
   - [Requirements](#requirements)
   - [One-Line Install](#one-line-install)
   - [Manual Install](#manual-install)
+  - [Hugging Face Access](#hugging-face-access)
   - [macOS Quarantine](#macos-quarantine)
   - [Updating / Uninstalling](#updating--uninstalling)
 - [How It Works](#how-it-works)
@@ -59,6 +60,7 @@ Companion project: [MIDI-GPT for REAPER](https://github.com/Metacreation-Lab/mid
 | **Max** | the Max bundled with Live: 8.6 (Live 11 to 12.1) or 9 (Live 12.2 and later) |
 | **OS** | macOS. The installer also runs on Linux; on Windows install the device and server by hand. |
 | **Server** | Python 3.10–3.12 and [`midigpt`](https://pypi.org/project/midigpt/) 0.3.4; the installer sets these up |
+| **Hugging Face** | a free account that has accepted the [model license](https://huggingface.co/Metacreation/MIDI-GPT), and an access token: see [Hugging Face Access](#hugging-face-access) |
 | **Disk** | about 1 GB for the server environment, plus the model: 83 MB (`yellow_small`) or 350 MB (`yellow_medium`) |
 | **Hardware** | any recent Mac; no GPU needed |
 
@@ -68,7 +70,7 @@ Companion project: [MIDI-GPT for REAPER](https://github.com/Metacreation-Lab/mid
 curl -fsSL https://metacreation.net/midigpt-live/bootstrap.sh | bash
 ```
 
-This downloads the latest release and copies the **MIDI-GPT** folder into your Live User Library (the location is read from Live's preferences). It then asks whether to set up a server on this computer: a Python environment in `~/Library/Application Support/MIDI-GPT/server` with `midigpt`, a **Start MIDI-GPT Server** launcher, and the model. Skip that step if your server runs on another machine.
+This downloads the latest release and copies the **MIDI-GPT** folder into your Live User Library (the location is read from Live's preferences). It then asks whether to set up a server on this computer: a Python environment in `~/Library/Application Support/MIDI-GPT/server` with `midigpt`, a **Start MIDI-GPT Server** launcher, and the model. If no Hugging Face token is saved yet, it asks for one (see [Hugging Face Access](#hugging-face-access)). Skip the server if yours runs on another machine.
 
 Options go after `bash -s --`, for example `curl -fsSL …/bootstrap.sh | bash -s -- --no-server`:
 
@@ -78,7 +80,7 @@ Options go after `bash -s --`, for example `curl -fsSL …/bootstrap.sh | bash -
 | `--model yellow_small` | the smaller, faster model (default `yellow_medium`) |
 | `--user-library DIR` | install the devices into another User Library |
 | `--zip FILE` | install from a downloaded release zip |
-| `--yes` | accept every default |
+| `--yes` | accept every default (a Hugging Face token is then read from `HF_TOKEN`) |
 | `--uninstall` | remove everything (see below) |
 
 ### Manual Install
@@ -105,13 +107,29 @@ Options go after `bash -s --`, for example `curl -fsSL …/bootstrap.sh | bash -
 
    On an Intel Mac, add `"torch<2.3" "numpy<2"` (the last PyTorch built for Intel Macs).
 
-4. **Start the server:**
+4. **Sign in to Hugging Face** (see [Hugging Face Access](#hugging-face-access)):
+
+   ```bash
+   hf auth login
+   ```
+
+5. **Start the server:**
 
    ```bash
    midigpt-http --pretrained yellow_medium --host 127.0.0.1 --port 3456
    ```
 
    The first start downloads the model from Hugging Face. Leave the window open while you work; Ctrl+C stops the server.
+
+### Hugging Face Access
+
+The models are downloaded from [Metacreation/MIDI-GPT](https://huggingface.co/Metacreation/MIDI-GPT) on Hugging Face, which needs a free account:
+
+1. Sign in at [huggingface.co](https://huggingface.co) and accept the license on the [model page](https://huggingface.co/Metacreation/MIDI-GPT).
+2. Create an access token in **Settings › Access Tokens** ([huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)); the **Read** type is enough.
+3. Give it to the installer when it asks, or run `hf auth login` in the server's environment. The token is saved in `~/.cache/huggingface/token`, where the server finds it on every start. Setting `HF_TOKEN` works too.
+
+The token is only used by the server, to download the model; the device never sees it. A model that is already downloaded keeps working without one. If the server can't get the model, its window says why and stays open.
 
 ### macOS Quarantine
 
@@ -129,7 +147,7 @@ Run the one-line install again to update: it replaces the devices and keeps your
 curl -fsSL https://metacreation.net/midigpt-live/bootstrap.sh | bash -s -- --uninstall
 ```
 
-This removes the MIDI-GPT folder from the User Library, the server environment, the launchers and the settings. Downloaded models stay in `~/.cache/huggingface` (delete `models--Metacreation--MIDI-GPT` there to free the space).
+This removes the MIDI-GPT folder from the User Library, the server environment, the launchers and the settings. Downloaded models stay in `~/.cache/huggingface` (delete `models--Metacreation--MIDI-GPT` there to free the space), and so does the Hugging Face token (`hf auth logout` removes it).
 
 ---
 
@@ -228,14 +246,15 @@ When a request fails, the readout under the takes says what went wrong and what 
 
 | Symptom | Fix |
 |---|---|
-| **NO LINK** in the readout, red light in **SETUP** | the server isn't running or the address is wrong: start it, or check the address |
+| **NO LINK** in the readout, red light in **SETUP** | the server isn't running or the address is wrong: start it, or check the address. If it stopped at startup, its window says why |
+| The server window says the model is gated | accept the license at [huggingface.co/Metacreation/MIDI-GPT](https://huggingface.co/Metacreation/MIDI-GPT) and save a token: see [Hugging Face Access](#hugging-face-access) |
 | Port 3456 already in use | another MIDI-GPT server (MIDI-GPT for REAPER uses the same port) is already running: use it, or start this one with `--port 3457` and change the address |
 | **TAG FAILED** | Live didn't load the tag device: drag **MIDI-GPT Instrument** from the MIDI-GPT folder onto the track |
 | **TIME SIG** | the scene's clips use different time signatures |
 | **TOO FEW BARS** | the scene is shorter than **CONTEXT**: lower it or lengthen the clips |
 | The device won't load after a download | see [macOS Quarantine](#macos-quarantine) |
 
-Settings: `~/Library/Application Support/MIDI-GPT/live.json`. Server: `~/Library/Application Support/MIDI-GPT/server` (its window shows the log). Models: `~/.cache/huggingface`.
+Settings: `~/Library/Application Support/MIDI-GPT/live.json`. Server: `~/Library/Application Support/MIDI-GPT/server` (its window shows the log). Models and the Hugging Face token: `~/.cache/huggingface`.
 
 ---
 

@@ -4,6 +4,17 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.1]
+
+### Added
+- Hugging Face access for the gated models: the installer checks it before downloading, explains the license and
+  token steps, and saves a pasted token where the server reads it (`--yes` uses `HF_TOKEN`). The README and the
+  install docs have a Hugging Face account step.
+
+### Changed
+- The **Start MIDI-GPT Server** window stays open when the server stops on an error, so its message can be read.
+- **NO LINK** points to the server window, which says why a server stopped.
+
 ## [0.2.0]
 
 ### Added

@@ -14,10 +14,11 @@
 #   --server | --no-server   set up the local server, or skip it (default: ask)
 #   --server-dir DIR      where the server's Python environment goes
 #   --model NAME          yellow_medium (default, 350 MB) or yellow_small (83 MB, faster)
-#   --yes                 accept every default without asking
+#   --yes                 accept every default without asking (a Hugging Face token is then read from HF_TOKEN)
 #   --uninstall           remove the device folder, the server environment and the settings
 #
-# Environment: MIDIGPT_LIVE_REPO (owner/repo of the releases), MIDIGPT_VERSION (midigpt package version).
+# Environment: MIDIGPT_LIVE_REPO (owner/repo of the releases), MIDIGPT_VERSION (midigpt package version),
+# HF_TOKEN (a Hugging Face token to save for the server, with --yes).
 
 set -euo pipefail
 
@@ -106,6 +107,81 @@ config_get() {
     python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get(sys.argv[2], ""))' "$CONFIG" "$1" 2>/dev/null || true
 }
 
+# Hugging Face access to the model (the checkpoints are gated: an account that accepted the license, and a token).
+# Sets HF_ACCESS: cached (already downloaded), ok, nologin (no token saved), gated (the token's account has no
+# access), offline (Hugging Face couldn't be reached). HF_TOKEN is left out: what counts is the saved token, the one
+# the launcher's server will use.
+HF_REPO="Metacreation/MIDI-GPT"
+hf_check() {
+    HF_ACCESS="$(env -u HF_TOKEN "$VENV/bin/python" - "$HF_REPO" "$MODEL" <<'PY' 2>/dev/null || echo offline
+import glob, os, sys
+from huggingface_hub import constants, get_hf_file_metadata, get_token, hf_hub_url
+from huggingface_hub.utils import GatedRepoError, RepositoryNotFoundError
+repo, model = sys.argv[1:]
+snapshots = os.path.join(constants.HF_HUB_CACHE, "models--" + repo.replace("/", "--"), "snapshots")
+if glob.glob(os.path.join(snapshots, "*", model + "-*.safetensors")):
+    print("cached"); sys.exit()
+try:
+    from midigpt.inference.engine import _resolve_checkpoint_filename
+    get_hf_file_metadata(hf_hub_url(repo, _resolve_checkpoint_filename(repo, model)))
+    print("ok")
+except (GatedRepoError, RepositoryNotFoundError):
+    print("gated" if get_token() else "nologin")
+PY
+)"
+}
+
+# save a Hugging Face token where midigpt-http finds it (~/.cache/huggingface/token); the token is passed in the
+# environment, not on a command line
+hf_login() {
+    MIDIGPT_HF_TOKEN="$1" env -u HF_TOKEN "$VENV/bin/python" -c '
+import os, sys
+from huggingface_hub import login
+try:
+    login(token=os.environ["MIDIGPT_HF_TOKEN"], add_to_git_credential=False)
+except Exception as e:
+    sys.exit(f"    {e}")' >/dev/null
+}
+
+hf_access() {
+    hf_check
+    case "$HF_ACCESS" in
+        cached) ok "the $MODEL model is already downloaded"; return ;;
+        ok) ok "Hugging Face: access to $HF_REPO"; return ;;
+        offline) warn "Couldn't reach Hugging Face; the server downloads the model on its first start."; return ;;
+    esac
+    # --yes, or no terminal: use HF_TOKEN if it is set
+    if [ "$YES" = 1 ] || [ ! -t 0 ]; then
+        if [ -n "${HF_TOKEN:-}" ] && hf_login "$HF_TOKEN"; then hf_check; fi
+        [ "$HF_ACCESS" = ok ] && { ok "Hugging Face: access to $HF_REPO (HF_TOKEN saved)"; return; }
+        warn "No access to $HF_REPO: accept its license at https://huggingface.co/$HF_REPO, then run"
+        warn "'$VENV/bin/hf auth login' (or install again with HF_TOKEN set)."
+        return
+    fi
+    echo
+    echo "    The MIDI-GPT models are on Hugging Face and need a free account to download:"
+    echo "      1. Sign in at https://huggingface.co and accept the license at https://huggingface.co/$HF_REPO"
+    echo "      2. Create an access token at https://huggingface.co/settings/tokens (type \"Read\" is enough)"
+    [ "$HF_ACCESS" = gated ] && echo "    (A token is saved, but its account has no access yet: accept the license, or paste another token.)"
+    local tok
+    while true; do
+        read -r -s -p "    Paste the token (hidden), or press Enter to skip: " tok; echo
+        if [ -z "$tok" ]; then
+            [ "$HF_ACCESS" = gated ] && hf_check
+            [ "$HF_ACCESS" = ok ] && { ok "Hugging Face: access to $HF_REPO"; return; }
+            warn "Skipped. The server will say what is missing when it starts; run '$VENV/bin/hf auth login' later."
+            return
+        fi
+        hf_login "$tok" || { warn "That token was refused; try again."; continue; }
+        hf_check
+        case "$HF_ACCESS" in
+            ok) ok "token saved; access to $HF_REPO"; return ;;
+            gated) warn "Token saved, but this account has no access yet: accept the license at https://huggingface.co/$HF_REPO, then press Enter." ;;
+            *) warn "Token saved; Hugging Face couldn't be reached to check it."; return ;;
+        esac
+    done
+}
+
 USER_LIB="${USER_LIB:-$(find_user_library)}"
 DEVICE_DIR="$USER_LIB/MIDI-GPT"
 
@@ -117,7 +193,8 @@ if [ "$UNINSTALL" = 1 ]; then
     [ -d "$SERVER_DIR" ] && ask "Remove the server environment in $SERVER_DIR?" y && rm -rf "$SERVER_DIR" && ok "removed $SERVER_DIR"
     [ -f "$HOME/Desktop/Start MIDI-GPT Server.command" ] && rm -f "$HOME/Desktop/Start MIDI-GPT Server.command" && ok "removed the Desktop launcher"
     [ -f "$CONFIG" ] && ask "Remove the saved settings ($CONFIG)?" y && rm -f "$CONFIG" && ok "removed settings"
-    echo; echo "    Downloaded models stay in ~/.cache/huggingface (delete Metacreation--MIDI-GPT there to free the space)."
+    echo; echo "    Downloaded models stay in ~/.cache/huggingface (delete models--Metacreation--MIDI-GPT there to free the space),"
+    echo "    and so does a saved Hugging Face token (hf auth logout removes it)."
     exit 0
 fi
 
@@ -225,7 +302,13 @@ else
 # Extra arguments go to midigpt-http, e.g. --host 0.0.0.0 to reach it from other computers.
 cd "\$(dirname "\$0")"
 echo "MIDI-GPT server on http://127.0.0.1:$PORT (model $MODEL). Press Ctrl+C to stop."
-exec "$VENV/bin/midigpt-http" --pretrained $MODEL --host 127.0.0.1 --port $PORT "\$@"
+"$VENV/bin/midigpt-http" --pretrained $MODEL --host 127.0.0.1 --port $PORT "\$@"
+status=\$?
+# keep the window open when the server stops on its own, so its message can be read
+if [ \$status -ne 0 ] && [ \$status -ne 130 ] && [ -t 0 ]; then
+    echo; read -r -p "The server stopped (exit \$status). Press Enter to close. "
+fi
+exit \$status
 EOF
     chmod +x "$LAUNCH"
     LAUNCHERS=()
@@ -240,13 +323,20 @@ EOF
     fi
     ok "launcher: $LAUNCH"
 
-    if ask "Download the $MODEL model now? (otherwise on the server's first start)" y; then
+    hf_access
+    if { [ "$HF_ACCESS" = ok ] || [ "$HF_ACCESS" = offline ]; } && ask "Download the $MODEL model now? (otherwise on the server's first start)" y; then
         "$VENV/bin/python" - "$MODEL" <<'PY' || warn "Download failed; the server will try again when it starts."
 import sys
 from huggingface_hub import hf_hub_download
+from huggingface_hub.utils import GatedRepoError
 from midigpt.inference.engine import _resolve_checkpoint_filename
 repo = "Metacreation/MIDI-GPT"
-print("    " + hf_hub_download(repo_id=repo, filename=_resolve_checkpoint_filename(repo, sys.argv[1])))
+try:
+    print("    " + hf_hub_download(repo_id=repo, filename=_resolve_checkpoint_filename(repo, sys.argv[1])))
+except GatedRepoError:
+    print(f"    No access to {repo} yet: accept its license at https://huggingface.co/{repo}, then run this installer "
+          "again or start the server.", file=sys.stderr)
+    sys.exit(1)
 PY
     fi
 fi

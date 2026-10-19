@@ -4,7 +4,7 @@
 
 | Message | Fix |
 |---|---|
-| **NO LINK** (red light in SETUP) | the server isn't running or the address is wrong: start it, or check the address in [SETUP](guide/setup.md) |
+| **NO LINK** (red light in SETUP) | the server isn't running or the address is wrong: start it, or check the address in [SETUP](guide/setup.md). If it stopped at startup, its window says why |
 | **LINK LOST** | the server stopped answering mid-request; nothing was written. Retry. |
 | **NO REPLY** | the server didn't answer in time: check it's still running, or try a smaller request |
 | **SRV BUSY** | the server's queue is full; the device retries by itself |
@@ -24,6 +24,7 @@
 
 | Symptom | Fix |
 |---|---|
+| The server window says the model is gated, or no access | accept the license at [huggingface.co/Metacreation/MIDI-GPT](https://huggingface.co/Metacreation/MIDI-GPT) with your Hugging Face account and save a token (see [Install](install.md#hugging-face-account)) |
 | Port 3456 already in use | another MIDI-GPT server is running (MIDI-GPT for REAPER uses the same port): use it, or start this one with `--port 3457` and change the address |
 | The device won't load after a download | clear the macOS quarantine flag (see [Install](install.md#macos-quarantine)) |
 | The first generation is slow | the server loads the model on the first request; later ones are faster |
@@ -41,7 +42,7 @@
 |---|---|
 | Settings | `~/Library/Application Support/MIDI-GPT/live.json` |
 | Server | `~/Library/Application Support/MIDI-GPT/server` (its window shows the log) |
-| Models | `~/.cache/huggingface` |
+| Models and the Hugging Face token | `~/.cache/huggingface` |
 
 Still stuck? [Open an issue](https://github.com/Metacreation-Lab/midigpt-LIVE/issues) with what you did and what the
 stats screen said.

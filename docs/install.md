@@ -1,5 +1,19 @@
 # Install
 
+## Hugging Face account
+
+The models are downloaded from [Metacreation/MIDI-GPT](https://huggingface.co/Metacreation/MIDI-GPT) on Hugging
+Face, which needs a free account. Before installing:
+
+1. Sign in at [huggingface.co](https://huggingface.co) and accept the license on the
+   [model page](https://huggingface.co/Metacreation/MIDI-GPT).
+2. Create an access token in **Settings › Access Tokens**
+   ([huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)); the **Read** type is enough.
+
+The installer asks for the token and saves it in `~/.cache/huggingface/token`, where the server finds it on every
+start (or run `hf auth login` in the server's environment, or set `HF_TOKEN`). Only the server uses it, to download
+the model; the device never sees it. A model that is already downloaded keeps working without one.
+
 ## One-line install
 
 ```bash
@@ -9,7 +23,8 @@ curl -fsSL https://metacreation.net/midigpt-live/bootstrap.sh | bash
 This downloads the latest release and copies the **MIDI-GPT** folder into your Live User Library (its location is
 read from Live's preferences). It then asks whether to set up a server on this computer: a Python environment in
 `~/Library/Application Support/MIDI-GPT/server` with `midigpt`, a **Start MIDI-GPT Server** launcher, and the model.
-Skip that step if your server runs on another machine.
+If no Hugging Face token is saved yet, it asks for one (see [Hugging Face account](#hugging-face-account)). Skip the
+server if yours runs on another machine.
 
 Options go after `bash -s --`, for example `… | bash -s -- --no-server`:
 
@@ -19,7 +34,7 @@ Options go after `bash -s --`, for example `… | bash -s -- --no-server`:
 | `--model yellow_small` | the smaller, faster model (default `yellow_medium`) |
 | `--user-library DIR` | install the devices into another User Library |
 | `--zip FILE` | install from a downloaded release zip |
-| `--yes` | accept every default |
+| `--yes` | accept every default (a Hugging Face token is then read from `HF_TOKEN`) |
 | `--uninstall` | remove everything (see below) |
 
 ## Manual install
@@ -48,7 +63,13 @@ Options go after `bash -s --`, for example `… | bash -s -- --no-server`:
 
     On an Intel Mac, add `"torch<2.3" "numpy<2"` (the last PyTorch built for Intel Macs).
 
-4. **Start the server:**
+4. **Sign in to Hugging Face** with your token (see [Hugging Face account](#hugging-face-account)):
+
+    ```bash
+    hf auth login
+    ```
+
+5. **Start the server:**
 
     ```bash
     midigpt-http --pretrained yellow_medium --host 127.0.0.1 --port 3456
@@ -83,3 +104,4 @@ curl -fsSL https://metacreation.net/midigpt-live/bootstrap.sh | bash -s -- --uni
 
 This removes the MIDI-GPT folder from the User Library, the server environment, the launchers and the settings.
 Downloaded models stay in `~/.cache/huggingface`; delete `models--Metacreation--MIDI-GPT` there to free the space.
+The Hugging Face token stays there too; `hf auth logout` removes it.

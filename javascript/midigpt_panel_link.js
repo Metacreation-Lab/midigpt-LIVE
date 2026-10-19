@@ -244,7 +244,7 @@ function track_names_in(msg){
 function panel_fault_from_message(msg){
     var m;
     msg = String(msg || "");
-    if (/server offline/i.test(msg)) return panel_fault("NO LINK", "SERVER UNREACHABLE", "CHECK ADDRESS IN SETUP", { noReport: true });
+    if (/server offline/i.test(msg)) return panel_fault("NO LINK", "SERVER UNREACHABLE", "SEE SERVER WINDOW · CHECK SETUP", { noReport: true });
     if (/Time signature mismatch/i.test(msg)) return panel_fault("TIME SIG", "CLIPS USE DIFFERENT METERS", "MATCH THE TIME SIGNATURES", { notSent: 1, noReport: true });
     if ((m = /(\d+(?:\.\d+)?) available, need at least model_dim=(\d+)/.exec(msg)))
         return panel_fault("TOO FEW BARS", Math.floor(+m[1]) + " BARS, CONTEXT NEEDS " + m[2], "LONGER CLIPS OR LOWER CONTEXT", { notSent: 1, noReport: true });

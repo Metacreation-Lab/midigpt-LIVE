@@ -1073,7 +1073,7 @@ function preflight() {
 function localFault(code, cause, action) { errSeen = { id: "local" + now(), code: code, cause: cause, action: action, warn: 0, notSent: 1, t: now() }; }
 function generate() {
     errSeen = null;
-    if (!S.server.online) { errSeen = { id: "local" + now(), code: "NO LINK", cause: "SERVER UNREACHABLE", action: "CHECK ADDRESS IN SETUP", t: now() }; return; }
+    if (!S.server.online) { errSeen = { id: "local" + now(), code: "NO LINK", cause: "SERVER UNREACHABLE", action: "SEE SERVER WINDOW · CHECK SETUP", t: now() }; return; }
     var any = false;
     for (var i = 0; i < S.tracks.length; i++) if (isTarget(S.tracks[i])) any = true;
     if (!any) return localFault("NO TARGET", "NO BARS CHOSEN", "PAINT BARS OR USE AR");
