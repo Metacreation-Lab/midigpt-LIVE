@@ -321,6 +321,16 @@ var GM_INSTRUMENT_NAMES = [
     "Guitar Fret Noise","Breath Noise","Seashore","Bird Tweet","Telephone Ring","Helicopter","Applause","Gunshot"
 ];
 
+// A track control under the name the selected model knows (/info attributes). Prism and expressive have
+// bar-level density and polyphony (bar_note_density, ...) and a bar-level pitch-class set: those go in attrs.bar
+// and are sent per generated bar. A control the model lacks is left out.
+function set_attr(attrs, name, value, bar){
+    var known = server_info && server_info.attributes;
+    if (bar) { if (known && name in known) (attrs.bar = attrs.bar || {})[name] = value; }
+    else if (!known || name in known) attrs[name] = value;
+    else if (("bar_" + name) in known) (attrs.bar = attrs.bar || {})["bar_" + name] = value;
+}
+
 // model_dim (context bars) the loaded checkpoint accepts, from /info
 function model_dim_options(){
     var opts = server_capabilities && server_capabilities.model_dim_options;
@@ -406,6 +416,12 @@ var default_track_params = {
     min_note_duration_q: 0, //max: 6 - 0 is any
     max_note_duration_q: 0, //max: 6
     polyphony_hard_limit: 12, //ints - is 0 any ?
+    // prism / expressive track controls, 0 = any: key 1-24 (major C..B, minor C..B), range in semitones,
+    // silence 1-10 (0-90 % of a bar silent), pcs 1-12 distinct pitch classes per bar
+    key_q: 0,
+    range_q: 0,
+    silence_q: 0,
+    pcs_q: 0,
     // for drums only:
     density: 0,
     start_time: 0,
@@ -840,9 +856,10 @@ function http_health(on_done){
 }
 
 function http_info(on_done){
-    flog("http_info: GET " + SERVER_URL + "/info");
+    var url = SERVER_URL + "/info" + (global_params.model ? "?model=" + encodeURIComponent(global_params.model) : "");
+    flog("http_info: GET " + url);
     var req = new_request();
-    req.open("GET", SERVER_URL + "/info", true);
+    req.open("GET", url, true);
     req.timeout = 10000;
     req.ontimeout = function(){ flog("http_info: TIMEOUT"); server_online = false; schedule_panel(); on_done && on_done(false); };
     req.onreadystatechange = function(){
@@ -1228,10 +1245,10 @@ function write_score_to_clips(score, ctx){
     // Always read it fresh per response; SCORE_RESOLUTION is only a
     // fallback for the unlikely case a response omits the field entirely.
     var res = score.resolution || SCORE_RESOLUTION;
-    flog("write_score_to_clips: response resolution=" + res + " tracks=" + JSON.stringify(Object.keys(score.tracks)) + " write_track_nrs=" + JSON.stringify(ctx.write_track_nrs));
+    debug && flog("write_score_to_clips: response resolution=" + res + " tracks=" + JSON.stringify(Object.keys(score.tracks)) + " write_track_nrs=" + JSON.stringify(ctx.write_track_nrs));
     for (var t in score.tracks) {
-        var track_nr = ctx.write_track_nrs.indexOf(t);
-        flog("  track t=" + t + " (type=" + typeof t + ") track_nr=" + track_nr + " clip_id=" + ctx.write_clip_ids[track_nr]);
+        var track_nr = ctx.write_track_nrs.indexOf(+t);
+        debug && flog("  track t=" + t + " (type=" + typeof t + ") track_nr=" + track_nr + " clip_id=" + ctx.write_clip_ids[track_nr]);
         if (track_nr < 0) { flog("  -> skipping (not a generation target)"); continue; }
         var scoreBars = score.tracks[t].bars;
         var clip = new LiveAPI();
@@ -1463,7 +1480,7 @@ function set_track_param(t, key, value){
 function engine_set(key, value){
     var v = +value;
     switch (key) {
-        case "model": global_params.model = String(value); schedule_dict_sync(); return;
+        case "model": global_params.model = String(value); schedule_dict_sync(); http_info(); return;
         case "model_dim": if (v > 0) { set_global_param("model_dim_auto", false); set_global_param("model_dim", v); } else set_global_param("model_dim_auto", true); return;
         case "bars_per_step": if (v > 0) { set_global_param("bars_per_step_auto", false); set_global_param("bars_per_step", v); } else set_global_param("bars_per_step_auto", true); return;
         case "tracks_per_step": if (v > 0) { set_global_param("tracks_per_step_auto", false); set_global_param("tracks_per_step", v); } else set_global_param("tracks_per_step_auto", true); return;
@@ -2419,11 +2436,22 @@ function build_request(){
         var maxPolyIdx  = tparams.max_polyphony_q;
         var minDurIdx   = tparams.min_note_duration_q;
         var maxDurIdx   = tparams.max_note_duration_q;
-        if (densityIdx > 0) attrs["note_density"]      = densityIdx - 1;
-        if (minPolyIdx > 0) attrs["min_polyphony"]     = minPolyIdx - 1;
-        if (maxPolyIdx > 0) attrs["max_polyphony"]     = maxPolyIdx - 1;
-        if (minDurIdx  > 0) attrs["min_note_duration"] = minDurIdx  - 1;
-        if (maxDurIdx  > 0) attrs["max_note_duration"] = maxDurIdx  - 1;
+        if (densityIdx > 0) set_attr(attrs, "note_density",      densityIdx - 1);
+        if (minPolyIdx > 0) set_attr(attrs, "min_polyphony",     minPolyIdx - 1);
+        if (maxPolyIdx > 0) set_attr(attrs, "max_polyphony",     maxPolyIdx - 1);
+        if (minDurIdx  > 0) set_attr(attrs, "min_note_duration", minDurIdx  - 1);
+        if (maxDurIdx  > 0) set_attr(attrs, "max_note_duration", maxDurIdx  - 1);
+        if (+tparams.silence_q > 0) set_attr(attrs, "silence_proportion", tparams.silence_q - 1);
+        if (!isDrum) {
+            if (+tparams.key_q > 0)   set_attr(attrs, "key_signature", tparams.key_q - 1);
+            if (+tparams.range_q > 0) set_attr(attrs, "pitch_range", +tparams.range_q);
+            if (+tparams.pcs_q > 0)   set_attr(attrs, "pitch_class_set", +tparams.pcs_q, true);
+        }
+        var barAttrs = {};
+        if (attrs.bar) {
+            for (var bi = 0; bi < barsToGenerate.length; bi++) barAttrs[barsToGenerate[bi]] = attrs.bar;
+            delete attrs.bar;
+        }
         midigptRequest.tracks.push({
             id:            +t,
             bars:          barsToGenerate,
@@ -2431,6 +2459,7 @@ function build_request(){
             ignore:        ignore_track,
             mask_bars:     [],
             attributes:    attrs,
+            bar_attributes: barAttrs,
             // the panel stores masks per track: only tracks being generated send them
             controls:      isTarget ? compute_track_controls(tparams) : {}
         });

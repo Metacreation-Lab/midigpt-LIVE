@@ -164,7 +164,8 @@ function push_panel(){
     var st = {
         scene: current_scene, bars: sc.bars, ts: sc.ts, cur: et, live_sel: current_track >= 0 ? 1 : 0, tracks: tracks,
         tp: { poly: [+cp.min_polyphony_q || 0, +cp.max_polyphony_q || +cp.min_polyphony_q || 0],
-              len: [+cp.min_note_duration_q || 0, +cp.max_note_duration_q || +cp.min_note_duration_q || 0], density: +cp.density || 0 },
+              len: [+cp.min_note_duration_q || 0, +cp.max_note_duration_q || +cp.min_note_duration_q || 0], density: +cp.density || 0,
+              key: +cp.key_q || 0, range: +cp.range_q || 0, silence: +cp.silence_q || 0, pcs: +cp.pcs_q || 0 },
         masks: { scale: +cp.pitch_mask_mode === 1 ? 1 : 0, root: +cp.pitch_mask_root || 0, mode: Math.max(0, scales.indexOf(cp.pitch_mask_scale)),
                  register: +cp.pitch_shape_mode === 1 ? [+cp.pitch_shape_min, +cp.pitch_shape_max] : [0, 127],
                  rhythm: +cp.rhythm_on ? 1 : 0, unit: cp.rhythm_unit || "sixteenth", strength: +cp.rhythm_grid_strength,
@@ -178,9 +179,10 @@ function push_panel(){
                   bps: +gp.bars_per_step, bps_auto: gp.bars_per_step_auto ? 1 : 0, tps: +gp.tracks_per_step, tps_auto: gp.tracks_per_step_auto ? 1 : 0,
                   attempts: +gp.max_attempts, polylim: +gp.polyphony_hard_limit, denslim: +gp.density_hard_limit,
                   maskp: +gp.mask_p || 0, maskk: +gp.mask_k || 0, velocity: gp.velocity_enabled ? 1 : 0, micro: gp.microtiming_enabled ? 1 : 0 },
-        server: { online: server_online ? 1 : 0, latency: Math.max(0, server_latency_ms), url: SERVER_URL, res: server_resolution,
+        server: { online: server_online ? 1 : 0, latency: latency_shown(server_latency_ms), url: SERVER_URL, res: server_resolution,
                   caps: { mask: caps.supports_pitch_mask ? 1 : 0, rhythm: caps.supports_rhythm_mask ? 1 : 0, remix: caps.supports_remix ? 1 : 0,
-                          scales: scales, units: server_grid_units || [], vel: caps.switchable_velocity ? 1 : 0, micro: caps.switchable_microtiming ? 1 : 0 } },
+                          scales: scales, units: server_grid_units || [], vel: caps.switchable_velocity ? 1 : 0, micro: caps.switchable_microtiming ? 1 : 0,
+                          attrs: server_info && server_info.attributes ? Object.keys(server_info.attributes) : [] } },
         gen: panel_gen_state(),
         err: panel_fault_state,
         tagging: tag_queue.length
@@ -384,6 +386,7 @@ function panel_message(a){
             if (a[2] === "poly") { panel_track_param(et, "min_polyphony_q", +a[3]); panel_track_param(et, "max_polyphony_q", +a[4]); }
             else if (a[2] === "len") { panel_track_param(et, "min_note_duration_q", +a[3]); panel_track_param(et, "max_note_duration_q", +a[4]); }
             else if (a[2] === "density") panel_track_param(et, "density", +a[3]);
+            else if (a[2] === "key" || a[2] === "range" || a[2] === "silence" || a[2] === "pcs") panel_track_param(et, a[2] + "_q", +a[3]);
             break;
         case "mask":    // the selected track's masks
             var et = panel_edit_track();

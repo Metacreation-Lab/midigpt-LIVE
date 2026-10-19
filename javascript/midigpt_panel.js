@@ -111,12 +111,12 @@ var UNIT_ORDER = ["whole", "half", "quarter", "quarter_triplet", "eighth", "eigh
 // ------------------------------------------------------------------ state (from midigpt.js) + view state (here)
 var S = {
     scene: -1, bars: 8, ts: "4/4", cur: -1, tracks: [],
-    tp: { poly: [0, 0], len: [0, 0], density: 0 },
+    tp: { poly: [0, 0], len: [0, 0], density: 0, key: 0, range: 0, silence: 0, pcs: 0 },
     masks: { scale: 0, root: 0, mode: 0, register: [0, 127], rhythm: 0, unit: "sixteenth", strength: 0.8, exact: 0, pattern: [], remix: 0, amount: 0.3, pd: 0 },
     sample: { temp: 1, topp: 1, topk: 0, esc: 1, takes: 1, seed: 0 },
     checks: { novelty: 1, silence: 1, shuffle: 0 },
     engine: { model: "", models: [], dims: [4], context: 4, context_auto: 1, bps: 1, bps_auto: 1, tps: 1, tps_auto: 1, attempts: 3, polylim: 0, denslim: 0, maskp: 0, maskk: 0, velocity: 0, micro: 0 },
-    server: { online: 0, latency: 0, url: "", caps: { mask: 0, remix: 0, rhythm: 0, scales: [], units: [], vel: 0, micro: 0 }, res: 12 },
+    server: { online: 0, latency: 0, url: "", caps: { mask: 0, remix: 0, rhythm: 0, scales: [], units: [], vel: 0, micro: 0, attrs: [] }, res: 12 },
     gen: { status: "idle", t0: 0, elapsed: 0, notes: 0, seed: 0, att: 0, tps: 0, ctx: 0, maxctx: 0, takes: [], cur: -1, orig: 0 },
     err: null,
     tagging: 0
@@ -190,6 +190,7 @@ function setupTrack() { return S.tracks[Math.min(ui.setup.sel, S.tracks.length -
 function painted(t, b) { return !t.ig && (t.ar ? b < t.nb || !t.hc : t.paint.charAt(b) === "1"); }
 function isTarget(t) { if (t.ig) return false; if (t.ar) return true; return t.paint.indexOf("1") >= 0; }
 function caps() { return S.server.caps || {}; }
+function hasAttr(name) { var a = caps().attrs; return !!(a && a.indexOf(name) >= 0); }
 
 // ------------------------------------------------------------------ text
 function txt(x, y, s, size, col, align, spacing, weight) {
@@ -311,6 +312,20 @@ var KNOBS = {
     "LENGTH": ext(rangeDef(tp, "len", 1, 6, function (lo, hi) { send("track", "len", lo, hi); }),
                   { show: function () { return curKind() !== "drums"; }, fmt: function () { var p = S.tp.len; return DUR[p[0] - 1] + "–" + DUR[p[1] - 1]; },
                     isAuto: function () { return !S.tp.len[0]; }, setAuto: function (v) { S.tp.len = v ? [0, 0] : [2, 4]; send("track", "len", S.tp.len[0], S.tp.len[1]); } }),
+    // prism / expressive: shown only when the model has the control (0 = any)
+    "KEY": ext(lin(tp, "key", 1, 24, 1, function (v) { send("track", "key", v); }),
+               { show: function () { return hasAttr("key_signature") && curKind() !== "drums"; },
+                 fmt: function () { var k = S.tp.key - 1; return NOTES[k % 12] + (k >= 12 ? "m" : ""); },
+                 isAuto: function () { return !S.tp.key; }, setAuto: function (v) { S.tp.key = v ? 0 : 1; send("track", "key", S.tp.key); } }),
+    "RANGE": ext(lin(tp, "range", 1, 48, 1, function (v) { send("track", "range", v); }),
+                 { show: function () { return hasAttr("pitch_range") && curKind() !== "drums"; }, fmt: function () { return S.tp.range + " ST"; },
+                   isAuto: function () { return !S.tp.range; }, setAuto: function (v) { S.tp.range = v ? 0 : 12; send("track", "range", S.tp.range); } }),
+    "SILENCE": ext(lin(tp, "silence", 1, 10, 1, function (v) { send("track", "silence", v); }),
+                   { show: function () { return hasAttr("silence_proportion"); }, fmt: function () { return (S.tp.silence - 1) * 10 + "%"; },
+                     isAuto: function () { return !S.tp.silence; }, setAuto: function (v) { S.tp.silence = v ? 0 : 3; send("track", "silence", S.tp.silence); } }),
+    "PCS": ext(lin(tp, "pcs", 1, 12, 1, function (v) { send("track", "pcs", v); }),
+               { show: function () { return hasAttr("pitch_class_set") && curKind() !== "drums"; }, fmt: function () { return S.tp.pcs + " PC"; },
+                 isAuto: function () { return !S.tp.pcs; }, setAuto: function (v) { S.tp.pcs = v ? 0 : 7; send("track", "pcs", S.tp.pcs); } }),
     "DENSITY": ext(lin(tp, "density", 1, 10, 1, function (v) { send("track", "density", v); }),
                    { show: function () { return curKind() === "drums"; }, fmt: function () { return String(S.tp.density); },
                      isAuto: function () { return !S.tp.density; }, setAuto: function (v) { S.tp.density = v ? 0 : 5; send("track", "density", S.tp.density); } }),
@@ -528,7 +543,7 @@ function hudRoll(x, y, w, h) {
     var r0 = ui.scroll.row, b0 = ui.scroll.bar;
     var top = y + 20, bottom = y + h - 18, rh = (bottom - top - (VIEW.rows - 1) * 3) / VIEW.rows, bw = (gw - gap * (bars - 1)) / bars;
     hit("roll-area", x, y, w, h, {});
-    if (S.tracks.length > VIEW.rows) {   // scrollbars: drag them (jsui has no scroll wheel)
+    if (S.tracks.length > VIEW.rows) {   // scrollbars: drag them, or scroll (onwheel)
         var sy0 = top, sh = bottom - top, th = sh * VIEW.rows / S.tracks.length, ty = sy0 + (sh - th) * r0 / (S.tracks.length - VIEW.rows);
         g.fillStyle = rgba(HUD.g, 0.15); g.fillRect(x + w - 8, sy0, 2, sh);
         g.fillStyle = rgba(HUD.g, 0.8); g.fillRect(x + w - 8, ty, 2, th);
@@ -833,7 +848,14 @@ function trackLayout() {
     var bay = SP.pages.main.bays[0], bx = bay[0], bw = bay[2], top = bay[1] + 24, bottom = bay[1] + bay[3] - 6;
     var big = [34, 58], hgt = big[0] + big[1];
     var c1 = Math.round(top + (bottom - top - hgt) / 2) + big[0], out = [];
+    // the model's extra controls (prism / expressive) in a second row, at the spec's places
+    var row2 = [], spec = {};
+    for (var n = 0; n < SP.pages.main.knobs.length; n++) spec[SP.pages.main.knobs[n][0]] = SP.pages.main.knobs[n];
+    var extra = ["KEY", "RANGE", "SILENCE", "PCS"];
+    for (n = 0; n < extra.length; n++) if (KNOBS[extra[n]].show()) row2.push(extra[n]);
+    if (row2.length) c1 = spec.POLY[2];
     for (var i = 0; i < row1.length; i++) out.push([row1[i], Math.round(bx + bw * (i + 0.5) / row1.length), c1, 26]);
+    for (i = 0; i < row2.length; i++) out.push([row2[i], Math.round(bx + bw * (i + 0.5) / row2.length), spec.KEY[2], spec.KEY[3]]);
     return out;
 }
 var TRACK_KNOBS = { "POLY": 1, "LENGTH": 1, "TRACK TEMP": 1, "DENSITY": 1, "KEY": 1, "RANGE": 1, "SILENCE": 1, "PCS": 1 };
@@ -1111,6 +1133,27 @@ var lastEmit = 0;
 function emitThrottled(def) { var t = now(); if (t - lastEmit > 60) { lastEmit = t; def.emit(); } }
 function onidle(x, y) {}
 onidle.local = 1;
+// Scroll wheel and trackpad: vertical moves the roll's tracks (or the SETUP list), horizontal or Shift+wheel
+// its bars. A trackpad sends many small steps, a wheel one per notch: they add up to whole rows / bars.
+var wheelAcc = { x: 0, y: 0 };
+function onwheel(x, y, wx, wy, button, cmd, shift) {
+    x += RX[0]; y += RX[1];
+    if (shift && !wx) { wx = wy; wy = 0; }
+    var before = ui.scroll.row + "," + ui.scroll.bar + "," + ui.setup.scroll;
+    wheelAcc.x += wx; wheelAcc.y += wy;
+    var whole = function (v) { return v < 0 ? Math.ceil(v) : Math.floor(v); };
+    var dx = whole(wheelAcc.x), dy = whole(wheelAcc.y);
+    wheelAcc.x -= dx; wheelAcc.y -= dy;
+    if (find(x, y, "roll-area")) {
+        ui.scroll.row -= dy; ui.scroll.bar -= dx; clampScroll();
+    } else if (find(x, y, "setup-row") || find(x, y, "setup-scroll")) {
+        ui.setup.scroll = Math.max(0, Math.min((ui.setup.scroll || 0) - dy, S.tracks.length - 7));   // 7 rows: hudSetup
+    } else { wheelAcc.x = wheelAcc.y = 0; return; }
+    if (before === ui.scroll.row + "," + ui.scroll.bar + "," + ui.setup.scroll) return;
+    redraw();
+    lastKey = regionKey();
+}
+onwheel.local = 1;
 
 // ------------------------------------------------------------------ server address (a native textedit over the screen)
 function urlEdit(on, always) {
