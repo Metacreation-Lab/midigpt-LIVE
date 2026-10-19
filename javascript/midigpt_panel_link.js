@@ -16,7 +16,7 @@ var panel_scene_cache = null;
 var panel_fault_state = null;    // {id, code, cause, action, warn, notSent, retry}
 var panel_fault_seq = 0;
 var panel_fault_fresh = false;   // a structured fault was just set: report_error() should not overwrite it
-var panel_gen = { t0: 0, elapsed: 0, notes: 0, seed: 0, att: 0, tps: 0, ctx: 0, maxctx: 0 };
+var panel_gen = { t0: 0, elapsed: 0, notes: 0, seed: 0, att: 0, tps: 0, ctx: 0, maxctx: 0, picked: null };
 
 function schedule_panel(){
     if (!panel_ready || panel_task) return;
@@ -154,7 +154,7 @@ function push_panel(){
         for (var b = 0; b < nb; b++) paint += sel[b] ? "1" : "0";
         for (b = 0; b < sc.bars; b++) cells += !r.hc ? "N" : b >= r.nb ? "N" : (sc.notes[i][b] && sc.notes[i][b].length ? "C" : "E");
         tracks.push({ i: r.i, name: r.name, short: r.short, hc: r.hc, nb: r.nb, cells: cells, paint: paint,
-                      ig: tp.ignore ? 1 : 0, ar: tp.autoregressive ? 1 : 0, inst: r.inst, src: r.src });
+                      ig: tp.ignore ? 1 : 0, ar: tp.autoregressive ? 1 : 0, as: +tp.ar_start || 0, inst: r.inst, src: r.src });
     }
     var et = panel_edit_track();
     var cp = scene_tparams(et) || apply_track_defaults({});
@@ -165,23 +165,24 @@ function push_panel(){
         scene: current_scene, bars: sc.bars, ts: sc.ts, cur: et, live_sel: current_track >= 0 ? 1 : 0, tracks: tracks,
         tp: { poly: [+cp.min_polyphony_q || 0, +cp.max_polyphony_q || +cp.min_polyphony_q || 0],
               len: [+cp.min_note_duration_q || 0, +cp.max_note_duration_q || +cp.min_note_duration_q || 0], density: +cp.density || 0,
-              key: +cp.key_q || 0, range: +cp.range_q || 0, silence: +cp.silence_q || 0, pcs: +cp.pcs_q || 0 },
+              key: +cp.key_q || 0, range: +cp.range_q || 0, silence: +cp.silence_q || 0, pcs: +cp.pcs_q || 0,
+              nomml: +cp.nomml_q || 0 },
         masks: { scale: +cp.pitch_mask_mode === 1 ? 1 : 0, root: +cp.pitch_mask_root || 0, mode: Math.max(0, scales.indexOf(cp.pitch_mask_scale)),
                  register: +cp.pitch_shape_mode === 1 ? [+cp.pitch_shape_min, +cp.pitch_shape_max] : [0, 127],
                  rhythm: +cp.rhythm_on ? 1 : 0, unit: cp.rhythm_unit || "sixteenth", strength: +cp.rhythm_grid_strength,
                  exact: +cp.rhythm_exact ? 1 : 0, pattern: as_array(cp.rhythm_pattern),
                  remix: cp.remix_enabled ? 1 : 0, amount: +cp.remix_amount, pd: +cp.remix_mode === 1 ? 1 : 0 },
         sample: { temp: +gp.temperature, topp: +gp.top_p, topk: +gp.top_k, esc: +gp.temperature_escalation,
-                  takes: Math.max(1, +gp.num_candidates || 1), seed: gp.seed_auto ? 0 : Math.max(0, +gp.seed) },
+                  takes: Math.max(1, +gp.num_candidates || 1), prob: +gp.infill_probability || 1, seed: gp.seed_auto ? 0 : Math.max(0, +gp.seed) },
         checks: { novelty: gp.novelty_check ? 1 : 0, silence: gp.silence_check ? 1 : 0, shuffle: gp.shuffle ? 1 : 0 },
         engine: { model: gp.model || server_default_model || "", models: server_models.map(function (m) { return m.id; }),
                   dims: model_dim_options(), context: +gp.model_dim, context_auto: gp.model_dim_auto ? 1 : 0,
                   bps: +gp.bars_per_step, bps_auto: gp.bars_per_step_auto ? 1 : 0, tps: +gp.tracks_per_step, tps_auto: gp.tracks_per_step_auto ? 1 : 0,
                   attempts: +gp.max_attempts, polylim: +gp.polyphony_hard_limit, denslim: +gp.density_hard_limit,
-                  maskp: +gp.mask_p || 0, maskk: +gp.mask_k || 0, velocity: gp.velocity_enabled ? 1 : 0, micro: gp.microtiming_enabled ? 1 : 0 },
+                  maskp: +gp.mask_p || 0, maskk: +gp.mask_k || 0, genre: gp.genre || "", velocity: gp.velocity_enabled ? 1 : 0, micro: gp.microtiming_enabled ? 1 : 0 },
         server: { online: server_online ? 1 : 0, latency: latency_shown(server_latency_ms), url: SERVER_URL, res: server_resolution,
                   caps: { mask: caps.supports_pitch_mask ? 1 : 0, rhythm: caps.supports_rhythm_mask ? 1 : 0, remix: caps.supports_remix ? 1 : 0,
-                          scales: scales, units: server_grid_units || [], vel: caps.switchable_velocity ? 1 : 0, micro: caps.switchable_microtiming ? 1 : 0,
+                          scales: scales, units: server_grid_units || [], vel: caps.switchable_velocity ? 1 : 0, micro: caps.switchable_microtiming ? 1 : 0, genres: caps.genres || [],
                           attrs: server_info && server_info.attributes ? Object.keys(server_info.attributes) : [] } },
         gen: panel_gen_state(),
         err: panel_fault_state,
@@ -219,7 +220,8 @@ function panel_gen_state(){
     var takes = last_generation ? last_generation.candidates.map(function (c) { return c.score ? 1 : 0; }) : [];
     return { status: status, t0: active_generation ? active_generation.started_at : 0, elapsed: panel_gen.elapsed, notes: panel_gen.notes,
              seed: panel_gen.seed, att: panel_gen.att, tps: panel_gen.tps, ctx: panel_gen.ctx, maxctx: panel_gen.maxctx,
-             takes: takes, cur: last_generation ? last_generation.selected : -1, orig: last_generation && last_generation.original ? 1 : 0 };
+             takes: takes, cur: last_generation ? last_generation.selected : -1, orig: last_generation && last_generation.original ? 1 : 0,
+             picked: panel_gen.picked };
 }
 
 // ------------------------------------------------------------------ faults (shown on the OUTPUT screen)
@@ -317,8 +319,8 @@ function count_target_notes(score){
     if (!score || !score.tracks || !ctx) return 0;
     for (var t in score.tracks) {
         if (ctx.write_track_nrs.indexOf(t) < 0 && ctx.write_track_nrs.indexOf(+t) < 0) continue;
-        var bars = score.tracks[t].bars || [];
-        for (var b = 0; b < bars.length; b++) n += (bars[b].notes || []).length;
+        var bars = score.tracks[t].bars || [], gb = ctx.gen_bars ? ctx.gen_bars[+t] : null;   // only the bars written back
+        for (var b = 0; b < bars.length; b++) if (!gb || gb.indexOf(b) >= 0) n += (bars[b].notes || []).length;
     }
     return n;
 }
@@ -342,7 +344,7 @@ function panel_message(a){
             return;
         case "generate":
             panel_fault_state = null;
-            panel_gen = { t0: Date.now(), elapsed: 0, notes: 0, seed: 0, att: 0, tps: 0, ctx: 0, maxctx: 0 };
+            panel_gen = { t0: Date.now(), elapsed: 0, notes: 0, seed: 0, att: 0, tps: 0, ctx: 0, maxctx: 0, picked: null };
             bang();
             break;
         case "cancel": http_cancel(); break;
@@ -381,13 +383,19 @@ function panel_message(a){
             if (tp.autoregressive) tp.ignore = false;
             schedule_dict_sync();
             break;
+        case "ar_start":   // the first bar an AR track generates (0 = all of it)
+            t = +a[2]; tp = scene_tparams(t);
+            if (!tp) return;
+            tp.ar_start = Math.max(0, Math.round(+a[3] || 0));
+            schedule_dict_sync();
+            break;
         case "track":   // the selected track's attributes; 0 = AUTO
             var et = panel_edit_track();
             if (et < 0) return;
             if (a[2] === "poly") { panel_track_param(et, "min_polyphony_q", +a[3]); panel_track_param(et, "max_polyphony_q", +a[4]); }
             else if (a[2] === "len") { panel_track_param(et, "min_note_duration_q", +a[3]); panel_track_param(et, "max_note_duration_q", +a[4]); }
             else if (a[2] === "density") panel_track_param(et, "density", +a[3]);
-            else if (a[2] === "key" || a[2] === "range" || a[2] === "silence" || a[2] === "pcs") panel_track_param(et, a[2] + "_q", +a[3]);
+            else if (a[2] === "key" || a[2] === "range" || a[2] === "silence" || a[2] === "pcs" || a[2] === "nomml") panel_track_param(et, a[2] + "_q", +a[3]);
             break;
         case "mask":    // the selected track's masks
             var et = panel_edit_track();
@@ -418,6 +426,7 @@ function panel_message(a){
             else if (sk === "topk") { set_global_param("top_k", Math.round(sv)); set_global_param("top_k_auto", sv <= 0); }
             else if (sk === "esc") { set_global_param("temperature_escalation", sv); set_global_param("temp_esc_auto", sv <= 1); }
             else if (sk === "takes") set_global_param("num_candidates", Math.round(sv));
+            else if (sk === "prob") set_global_param("infill_probability", Math.max(0.05, Math.min(1, sv)));
             else if (sk === "seed") { set_global_param("seed_auto", sv <= 0); set_global_param("seed", sv > 0 ? Math.round(sv) : -1); }
             break;
         case "seed_text":   // typed in the seed field: empty or 0 = random, a whole number 1..2147483647 = that seed, else ignored
@@ -429,6 +438,7 @@ function panel_message(a){
         case "engine":
             if (a[2] === "mask_p") set_global_param("mask_p", +a[3]);
             else if (a[2] === "mask_k") set_global_param("mask_k", Math.round(+a[3]));
+            else if (a[2] === "genre") set_global_param("genre", a[3] === "none" ? "" : String(a[3]));
             else engine_set(a[2], a[3]);
             break;
         case "set_instrument":

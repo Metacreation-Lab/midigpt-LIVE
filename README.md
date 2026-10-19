@@ -184,6 +184,8 @@ The server can run on another computer, such as a studio machine with more power
 | **POLY** | how many notes sound at once (melodic tracks) |
 | **LENGTH** | the range of note lengths, from 32nd to whole notes (melodic tracks) |
 | **DENSITY** | how busy the part is (drum tracks) |
+| **KEY · RANGE · SILENCE · PCS** | prism and expressive: key, pitch range, silent share of each bar, pitch classes per bar |
+| **EXPRESSIVENESS** | expressive: how loosely the notes sit on the beat, from on the grid to freely timed |
 
 **SAMPLE**, for the whole request.
 
@@ -194,6 +196,7 @@ The server can run on another computer, such as a studio machine with more power
 | **TOP-K** | 0–500 (off) | sample only from the K most likely choices |
 | **ESC** | 1–3 (1) | raise the temperature on each retry after a rejected result |
 | **TAKES** | 1–16 (1) | how many versions to generate |
+| **PROB** | 5–100 % (ALL) | regenerate only this share of the painted bars, picked at random |
 | **SEED** | 1–2147483647 (random) | click the screen to type one; **DICE** picks a random seed, **LOCK** keeps the last run's (or the selected take's). A fixed seed repeats a result exactly. |
 | **NOVELTY · SILENCE · SHUFFLE** | on / off | reject copies of the context, reject empty bars, vary the order tracks are generated in |
 

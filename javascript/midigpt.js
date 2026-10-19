@@ -400,6 +400,7 @@ include("midigpt_panel_link.js");
 
 var default_track_params = {
     autoregressive: false,
+    ar_start: 0,             // AR: the first bar generated; the bars before it are the track's own history
     ignore: false,
     track_type: 10, //aka STANDARD_TRACK (11 for STANDARD_DRUM_TRACK)
     instrument: 0,
@@ -422,6 +423,7 @@ var default_track_params = {
     range_q: 0,
     silence_q: 0,
     pcs_q: 0,
+    nomml_q: 0,              // EXPRESSIVENESS (expressive): 1-13 = NOMML 0-12, from on the grid to freely timed; 0 = AUTO
     // for drums only:
     density: 0,
     start_time: 0,
@@ -461,7 +463,6 @@ var default_track_params = {
 ________________________________________________________________________*/
 
 var global_params = {
-    percentage : 100,
     shuffle : false,
     tracks_per_step : 1,
     bars_per_step : 1,
@@ -484,6 +485,7 @@ var global_params = {
     mask_p: 0,
     mask_k: 0,
     num_candidates: 1,
+    infill_probability: 1,   // PROB: the share of the painted infill bars actually generated (picked at random)
     // Selected checkpoint id (from GET /models, e.g. "yellow_medium") --
     // sent as config.model on every /generate call (per-request selection,
     // no separate server-side switch endpoint exists). "" = not chosen
@@ -1150,6 +1152,7 @@ function http_cancel(){
 
 function handle_generate_response(result){
     var status = result.status || "completed";
+    apply_generated_bars(last_write_ctx, result.generated_bars);
     panel_generation_done(result);
     flog("handle_generate_response: status=" + status);
 
@@ -1177,6 +1180,14 @@ function handle_generate_response(result){
 
     active_generation = null;
     report_status(status === "cancelled" ? "cancelled" : "done");
+}
+
+// The bars the server generated per track: with PROB under 100 % a random subset of the painted infill bars. Only
+// those are written back (a track missing from the reply had none picked); the panel marks the rest.
+function apply_generated_bars(ctx, gb){
+    if (!ctx || !gb) return;
+    for (var t in ctx.gen_bars) ctx.gen_bars[t] = (gb[t] || []).slice();
+    panel_gen.picked = midigptRequest && midigptRequest.config && midigptRequest.config.infill_probability < 1 ? gb : null;
 }
 
 // Set after a num_candidates>1 generation completes -- lets select_candidate()
@@ -2209,6 +2220,7 @@ function build_config(nBarsForFit){
     if (!global_params.seed_auto && global_params.seed >= 0) cfg.seed = Math.round(global_params.seed);
     if (+global_params.mask_p > 0) cfg.mask_p = +global_params.mask_p;
     if (+global_params.mask_k > 0) cfg.mask_k = Math.round(+global_params.mask_k);
+    if (+global_params.infill_probability < 1) cfg.infill_probability = Math.max(0.05, +global_params.infill_probability);
     return cfg;
 }
 
@@ -2246,7 +2258,7 @@ function build_request(){
     var caps = server_capabilities || {};
     if (caps.switchable_velocity) reqControls.velocity = !!global_params.velocity_enabled;
     if (caps.switchable_microtiming) reqControls.microtiming = !!global_params.microtiming_enabled;
-    if (global_params.genre) reqControls.genre = global_params.genre;
+    if (global_params.genre && (caps.genres || []).indexOf(global_params.genre) >= 0) reqControls.genre = global_params.genre;   // only a model that lists it
     if (reqControls.velocity !== undefined || reqControls.microtiming !== undefined || reqControls.genre !== undefined) {
         midigptRequest.controls = reqControls;
     }
@@ -2369,9 +2381,11 @@ function build_request(){
         // A track is a generation target when AR is on or any of its bars is painted;
         // every other track in the scene is context (unless ignored).
         var isTarget = info.target;
+        var arStart = Math.max(0, Math.round(+tparams.ar_start || 0));
+        if (arStart >= nBars) arStart = 0;
         var selectedBars = [];
         for (var b = 0; b < nBars; b++){
-            selectedBars[b] = isTarget && (autoregressive || !!sel_bars[b]);
+            selectedBars[b] = isTarget && (autoregressive ? b >= arStart : !!sel_bars[b]);
             midigptScore.tracks[t].bars[b] = { ts_numerator: ts_n, ts_denominator: ts_d, future: false, notes: [] };
         }
 
@@ -2442,6 +2456,7 @@ function build_request(){
         if (minDurIdx  > 0) set_attr(attrs, "min_note_duration", minDurIdx  - 1);
         if (maxDurIdx  > 0) set_attr(attrs, "max_note_duration", maxDurIdx  - 1);
         if (+tparams.silence_q > 0) set_attr(attrs, "silence_proportion", tparams.silence_q - 1);
+        if (+tparams.nomml_q > 0) set_attr(attrs, "nomml", tparams.nomml_q - 1);
         if (!isDrum) {
             if (+tparams.key_q > 0)   set_attr(attrs, "key_signature", tparams.key_q - 1);
             if (+tparams.range_q > 0) set_attr(attrs, "pitch_range", +tparams.range_q);

@@ -123,7 +123,7 @@ var S = {
 };
 var NOTESDATA = [];   // per track (S.tracks order), per bar
 var ui = { page: "main", scroll: { row: 0, bar: 0 }, anim: {}, press: null, takePage: 0,
-           setup: { sel: 0, picked: {}, scroll: 0, browseFam: null, wiz: null, resetArm: 0 }, editingUrl: false, flash: null };
+           setup: { sel: 0, picked: {}, scroll: 0, browseFam: null, wiz: null, resetArm: 0 }, editingUrl: false, flash: null, engList: "models", genreScroll: 0 };
 var errSeen = null;   // the fault the person has not cleared yet (cleared locally; a new one replaces it)
 
 var lastKey = null, notesVer = 0;
@@ -167,10 +167,10 @@ function regionKey() {
     var c = cur(), base = ui.page + "|";
     switch (REGION) {
         case "top": return base;
-        case "roll": return base + JSON.stringify([S.tracks, S.bars, S.ts, S.cur, S.gen.status, S.gen.takes, S.gen.cur, S.engine.model, S.server.online, S.server.latency, S.scene]);
+        case "roll": return base + JSON.stringify([S.tracks, S.bars, S.ts, S.cur, S.gen.status, S.gen.takes, S.gen.cur, S.gen.picked, S.engine.model, S.server.online, S.server.latency, S.scene]);
         case "main":
             if (ui.page === "main") return base + JSON.stringify([S.tp, c ? [c.short, c.inst, isTarget(c)] : 0, S.sample, S.checks]);
-            if (ui.page === "engine") return base + JSON.stringify([S.engine, S.checks, S.server.caps, S.server.online, S.server.res]);
+            if (ui.page === "engine") return base + JSON.stringify([S.engine, S.checks, S.server.caps, S.server.online, S.server.res, ui.engList, ui.genreScroll]);
             return base + JSON.stringify([S.tracks, S.server.url, S.server.online, S.tagging]);
         case "output": return base + JSON.stringify([S.gen, S.sample.takes, S.err, S.server.online, S.engine.attempts]);
         case "masks": return base + JSON.stringify([S.masks, S.server.caps, S.ts, S.server.res, c ? [c.short, isTarget(c)] : 0]);
@@ -187,7 +187,8 @@ function curIdx() { for (var i = 0; i < S.tracks.length; i++) if (S.tracks[i].i 
 function cur() { var i = curIdx(); return i >= 0 ? S.tracks[i] : null; }
 function curKind() { var t = cur(); return t && t.inst === 128 ? "drums" : "melodic"; }
 function setupTrack() { return S.tracks[Math.min(ui.setup.sel, S.tracks.length - 1)] || null; }
-function painted(t, b) { return !t.ig && (t.ar ? b < t.nb || !t.hc : t.paint.charAt(b) === "1"); }
+// AR: every bar from its start (t.as) to the end of the clip; the bars before the start are its history
+function painted(t, b) { return !t.ig && (t.ar ? (b < t.nb || !t.hc) && b >= (t.as || 0) : t.paint.charAt(b) === "1"); }
 function isTarget(t) { if (t.ig) return false; if (t.ar) return true; return t.paint.indexOf("1") >= 0; }
 function caps() { return S.server.caps || {}; }
 function hasAttr(name) { var a = caps().attrs; return !!(a && a.indexOf(name) >= 0); }
@@ -323,6 +324,11 @@ var KNOBS = {
     "SILENCE": ext(lin(tp, "silence", 1, 10, 1, function (v) { send("track", "silence", v); }),
                    { show: function () { return hasAttr("silence_proportion"); }, fmt: function () { return (S.tp.silence - 1) * 10 + "%"; },
                      isAuto: function () { return !S.tp.silence; }, setAuto: function (v) { S.tp.silence = v ? 0 : 3; send("track", "silence", S.tp.silence); } }),
+    // NOMML (expressive): the median rhythmic grid the notes sit on, 0 = on the beat ... 12 = freely timed
+    "EXPRESSIVENESS": ext(lin(tp, "nomml", 1, 13, 1, function (v) { send("track", "nomml", v); }),
+                          { show: function () { return hasAttr("nomml"); }, labelW: 70,
+                            fmt: function () { return S.tp.nomml >= 13 ? "FREE" : S.tp.nomml <= 1 ? "GRID" : String(S.tp.nomml - 1); },
+                            isAuto: function () { return !S.tp.nomml; }, setAuto: function (v) { S.tp.nomml = v ? 0 : 13; send("track", "nomml", S.tp.nomml); } }),
     "PCS": ext(lin(tp, "pcs", 1, 12, 1, function (v) { send("track", "pcs", v); }),
                { show: function () { return hasAttr("pitch_class_set") && curKind() !== "drums"; }, fmt: function () { return S.tp.pcs + " PC"; },
                  isAuto: function () { return !S.tp.pcs; }, setAuto: function (v) { S.tp.pcs = v ? 0 : 7; send("track", "pcs", S.tp.pcs); } }),
@@ -335,6 +341,8 @@ var KNOBS = {
     "TOP-K": ext(lin(smp, "topk", 0, 500, 5, function (v) { send("sample", "topk", v); }), { fmt: function () { return S.sample.topk ? String(S.sample.topk) : "OFF"; }, def: 0 }),
     "ESC": ext(lin(smp, "esc", 1, 3, 0.05, function (v) { send("sample", "esc", v); }), { fmt: function () { return S.sample.esc.toFixed(2); }, def: 1 }),
     "TAKES": ext(lin(smp, "takes", 1, 16, 1, function (v) { send("sample", "takes", v); }), { fmt: function () { return String(S.sample.takes); }, def: 1 }),
+    "PROB": ext(lin(smp, "prob", 0.05, 1, 0.05, function (v) { send("sample", "prob", v); }),
+                { fmt: function () { return S.sample.prob >= 1 ? "ALL" : Math.round(S.sample.prob * 100) + "%"; }, def: 1 }),
     // ENGINE
     "CONTEXT": {
         v: function () { var d = S.engine.dims; return d.length > 1 ? Math.max(0, d.indexOf(S.engine.context)) / (d.length - 1) : 0.5; },
@@ -411,7 +419,9 @@ function drawKnob(def, name, cx, cy, r) {
     }
     g.globalAlpha = 1;
     var ly = cy + r * 1.24 + r * 0.06 + 10;
-    txt(cx, ly, def.label || name, r < 20 ? 6.8 : 7.4, dim ? T.dim : LAB, "center", 1);
+    var lab = def.label || name, ls = r < 20 ? 6.8 : 7.4;
+    if (def.labelW) ls = fitSize(lab, ls, 1, def.labelW);    // a long name shrinks to its column
+    txt(cx, ly, lab, ls, dim ? T.dim : LAB, "center", 1);
     txt(cx, ly + 10, auto ? "AUTO" : def.fmt(), 6.6, dim ? T.dim : auto ? ACC : INK, "center", auto ? 1 : 0.6);
     hit("knob", cx - r * 1.35, cy - r * 1.35, r * 2.7, r * 2.7, { def: def, name: name, cx: cx, cy: cy, r: r, dim: dim });
 }
@@ -588,13 +598,19 @@ function hudRoll(x, y, w, h) {
         }
         for (var bb = 0; bb < bars; bb++) {
             var b2 = b0 + bb, bx2 = gx + bb * (bw + gap), k = t.cells.charAt(b2) || "N", pt = painted(t, b2);
+            // painted, but PROB left it out of the last generation: dim brackets, its notes drawn as context
+            var skip = pt && !streaming && S.gen.picked && (S.gen.picked[t.i] || []).indexOf(b2) < 0;
+            if (ar && t.as > 0 && b2 === t.as) {   // where AR starts: a bar on the cell's left edge and a notch on top
+                g.fillStyle = HUD.a; g.fillRect(bx2 - 2, yy - 1, 1.5, rh + 2);
+                g.beginPath(); g.moveTo(bx2 - 2, yy - 1); g.lineTo(bx2 + 3, yy - 1); g.lineTo(bx2 - 2, yy + 4); g.closePath(); g.fill();
+            }
             var editable = !t.hc || b2 < t.nb;
             if (editable) hit("roll-bar", bx2, yy, bw, rh, { t: t, b: b2 });
             var notes = NOTESDATA[i] && NOTESDATA[i][b2];
             var pc = ar ? HUD.a : HUD.m, col = pt && hasTake ? pc : HUD.g;
             if (pt) {
                 var L = Math.min(6, bw / 4), cs = [[bx2, yy, 1, 1], [bx2 + bw, yy, -1, 1], [bx2, yy + rh, 1, -1], [bx2 + bw, yy + rh, -1, -1]];
-                g.strokeStyle = pc; g.lineWidth = 1.1;
+                g.strokeStyle = skip ? rgba(pc, 0.35) : pc; g.lineWidth = 1.1;
                 for (var q = 0; q < 4; q++) { g.beginPath(); g.moveTo(cs[q][0] + cs[q][2] * L, cs[q][1]); g.lineTo(cs[q][0], cs[q][1]); g.lineTo(cs[q][0], cs[q][1] + cs[q][3] * L); g.stroke(); }
                 g.fillStyle = rgba(pc, 0.05); g.fillRect(bx2, yy, bw, rh);
                 // steps of 0.02: each distinct colour string is parsed and cached once, not a new one every frame
@@ -606,8 +622,9 @@ function hudRoll(x, y, w, h) {
             } else {
                 g.strokeStyle = rgba(HUD.g, 0.28 * a); g.lineWidth = 0.8; g.strokeRect(bx2 + 0.5, yy + 0.5, bw - 1, rh - 1);
             }
-            if (notes && notes.length && (!pt || hasTake || k === "C")) {
-                g.fillStyle = rgba(col, (pt && hasTake ? 1 : 0.6) * a);
+            if (notes && notes.length && (!pt || skip || hasTake || k === "C")) {
+                if (skip) col = HUD.g;
+                g.fillStyle = rgba(col, (pt && hasTake && !skip ? 1 : 0.6) * a);
                 g.beginPath();      // one path, one fill for the whole cell (a fill per note was thousands per paint)
                 for (var m = 0; m < notes.length; m++) {
                     var nt = notes[m], X0 = bx2 + 3 + nt[0] * NSCALE * (bw - 6), X1 = X0 + Math.max(2, nt[1] * NSCALE * (bw - 6)), Y0 = yy + rh - 4 - nt[2] * NSCALE * (rh - 8);
@@ -677,10 +694,19 @@ function hudFault(x, y, w, h) {
     hit("err", x, y, w, h, {});
 }
 function hudModels(x, y, w, h) {
-    var l = S.server.online ? S.engine.models : [];
-    txt(x + 10, y + 11, "MODELS", 5.8, rgba(HUD.g, 0.6), "left", 0.8);
-    txt(x + w - 10, y + 11, S.server.online ? l.length + " ON SERVER" : "NO LINK", 5.8, S.server.online ? rgba(HUD.g, 0.6) : HUD.a, "right", 0.8);
+    var l = S.server.online ? S.engine.models : [], genres = (caps().genres || []), gtab = ui.engList === "genre" && genres.length;
+    if (genres.length) {   // two tabs: the model list, and the genre list of a model that has one (prism, expressive)
+        var tabs = [["MODELS", "models", x + 10], ["GENRE", "genre", x + 56]];
+        for (var tb = 0; tb < 2; tb++) {
+            var on = (tabs[tb][1] === "genre") === !!gtab;
+            txt(tabs[tb][2], y + 11, tabs[tb][0], 5.8, on ? HUD.c : rgba(HUD.g, 0.6), "left", 0.8);
+            if (on) { g.fillStyle = HUD.c; g.fillRect(tabs[tb][2], y + 15, tabs[tb][0].length * 4.6, 1); }
+            hit("eng-tab", tabs[tb][2] - 4, y + 2, 44, 16, { tab: tabs[tb][1] });
+        }
+    } else txt(x + 10, y + 11, "MODELS", 5.8, rgba(HUD.g, 0.6), "left", 0.8);
     var rh = 17, y0 = y + 22;
+    if (gtab) { hudGenres(x, y, w, h, genres, rh, y0); return; }
+    txt(x + w - 10, y + 11, S.server.online ? l.length + " ON SERVER" : "NO LINK", 5.8, S.server.online ? rgba(HUD.g, 0.6) : HUD.a, "right", 0.8);
     for (var i = 0; i < Math.min(5, l.length); i++) {
         var id = l[i], yy = y0 + i * rh, sel = id === S.engine.model;
         if (sel) { g.fillStyle = rgba(HUD.c, 0.10); g.fillRect(x + 4, yy - 1, w - 8, rh - 2); }
@@ -693,6 +719,27 @@ function hudModels(x, y, w, h) {
     txt(x + 10, iy, "CTX " + S.engine.dims.join("/") + " BARS  ·  RES " + (S.server.res || 12) + "/Q", 5.8, rgba(HUD.g, 0.7), "left", 0.6);
     var feats = [c.mask ? "SCALE" : null, c.rhythm ? "RHYTHM" : null, c.remix ? "REMIX" : null, c.vel ? "VELOCITY" : null, c.micro ? "MICROTIMING" : null].filter(function (s) { return s; });
     txt(x + 10, iy + 12, feats.join(" · "), 5.8, rgba(HUD.m, 0.85), "left", 0.6);
+}
+// The genre list: NONE plus the model's genres, as many rows as fit above the footer; the wheel scrolls it.
+function genreRows(h) { return Math.max(1, Math.floor((h - 22 - 8) / 17)); }
+function hudGenres(x, y, w, h, genres, rh, y0) {
+    var items = [""].concat(genres), n = genreRows(h), cur = S.engine.genre || "";
+    ui.genreScroll = Math.max(0, Math.min(ui.genreScroll || 0, items.length - n));
+    var s0 = ui.genreScroll;
+    txt(x + w - 10, y + 11, (cur ? cur.toUpperCase() : "NONE") + "  ·  " + (s0 + 1) + "–" + Math.min(items.length, s0 + n) + "/" + items.length,
+        5.8, rgba(HUD.g, 0.6), "right", 0.8);
+    for (var i = 0; i < n && s0 + i < items.length; i++) {
+        var id = items[s0 + i], yy = y0 + i * rh, sel = id === cur;
+        if (sel) { g.fillStyle = rgba(HUD.c, 0.10); g.fillRect(x + 4, yy - 1, w - 8, rh - 2); }
+        g.fillStyle = sel ? HUD.c : rgba(HUD.w, 0.25); g.beginPath(); g.arc(x + 12, yy + rh / 2 - 1, sel ? 2.6 : 2, 0, Math.PI * 2); g.fill();
+        txt(x + 22, yy + rh / 2 - 1, id ? id.toUpperCase().replace(/_/g, " ") : "NONE", 7.2, sel ? HUD.c : rgba(HUD.w, id ? 0.8 : 0.5), "left", 0.8);
+        hit("genre-row", x, yy - 1, w - 12, rh, { id: id });
+    }
+    if (items.length > n) {   // where the view is in the list
+        var th = Math.max(10, (h - 30) * n / items.length), ty = y0 + (h - 30 - th) * s0 / (items.length - n);
+        g.fillStyle = rgba(HUD.g, 0.15); g.fillRect(x + w - 7, y0, 2, h - 30);
+        g.fillStyle = rgba(HUD.c, 0.6); g.fillRect(x + w - 7, ty, 2, th);
+    }
 }
 // rhythm editor: GRID = soft pull toward the unit (strength); EXACT = the onsets per bar (first one fixed at the downbeat)
 function rhythmGrid() {
@@ -855,14 +902,14 @@ function trackLayout() {
     // the model's extra controls (prism / expressive) in a second row, at the spec's places
     var row2 = [], spec = {};
     for (var n = 0; n < SP.pages.main.knobs.length; n++) spec[SP.pages.main.knobs[n][0]] = SP.pages.main.knobs[n];
-    var extra = ["KEY", "RANGE", "SILENCE", "PCS"];
+    var extra = ["KEY", "RANGE", "SILENCE", "PCS", "EXPRESSIVENESS"];
     for (n = 0; n < extra.length; n++) if (KNOBS[extra[n]].show()) row2.push(extra[n]);
     if (row2.length) c1 = spec.POLY[2];
     for (var i = 0; i < row1.length; i++) out.push([row1[i], Math.round(bx + bw * (i + 0.5) / row1.length), c1, 26]);
     for (i = 0; i < row2.length; i++) out.push([row2[i], Math.round(bx + bw * (i + 0.5) / row2.length), spec.KEY[2], spec.KEY[3]]);
     return out;
 }
-var TRACK_KNOBS = { "POLY": 1, "LENGTH": 1, "TRACK TEMP": 1, "DENSITY": 1, "KEY": 1, "RANGE": 1, "SILENCE": 1, "PCS": 1 };
+var TRACK_KNOBS = { "POLY": 1, "LENGTH": 1, "TRACK TEMP": 1, "DENSITY": 1, "KEY": 1, "RANGE": 1, "SILENCE": 1, "PCS": 1, "EXPRESSIVENESS": 1 };
 function specPage() { return ui.page === "engine" && (caps().vel || caps().micro) ? "engine_vm" : ui.page; }
 
 // ------------------------------------------------------------------ paint
@@ -1049,7 +1096,8 @@ function onclick(x, y, button, cmd, shift, caps_, opt) {
     else if (h.kind === "roll-bar") {
         t = h.d.t;
         if (t.ig) { t.ig = 0; send("ignore", t.i, 0); }
-        if (t.ar) { t.ar = 0; send("ar", t.i, 0); }
+        // AR: a click sets where generation starts (clicking the start again goes back to bar 1)
+        if (t.ar) { t.as = t.as === h.d.b ? 0 : h.d.b; send("ar_start", t.i, t.as); redraw(); lastKey = regionKey(); return; }
         paintMode = t.paint.charAt(h.d.b) === "1" ? 0 : 1;
         setPaint(t, h.d.b, paintMode);
         drag = { paint: true };
@@ -1059,6 +1107,8 @@ function onclick(x, y, button, cmd, shift, caps_, opt) {
     else if (h.kind === "setup-scroll") { drag = { ss: h.d }; scrollTo(h.d, y); }
     else if (h.kind === "err") { errSeen = null; send("clear_fault"); }
     else if (h.kind === "model-row") { S.engine.model = h.d.id; send("engine", "model", h.d.id); }
+    else if (h.kind === "eng-tab") { ui.engList = h.d.tab; }
+    else if (h.kind === "genre-row") { S.engine.genre = h.d.id; send("engine", "genre", h.d.id || "none"); }
     else if (h.kind === "rhythm-tab") { S.masks.exact = h.d.exact; send("mask", "exact", h.d.exact); }
     else if (h.kind === "rhythm-cell") {
         var R = rhythmGrid(), pv = R.pat[h.d.i];
@@ -1148,7 +1198,7 @@ var wheelAcc = { x: 0, y: 0 };
 function onwheel(x, y, wx, wy, button, cmd, shift) {
     x += RX[0]; y += RX[1];
     if (shift && !wx) { wx = wy; wy = 0; }
-    var before = ui.scroll.row + "," + ui.scroll.bar + "," + ui.setup.scroll;
+    var before = ui.scroll.row + "," + ui.scroll.bar + "," + ui.setup.scroll + "," + ui.genreScroll;
     wheelAcc.x += wx; wheelAcc.y += wy;
     var whole = function (v) { return v < 0 ? Math.ceil(v) : Math.floor(v); };
     var dx = whole(wheelAcc.x), dy = whole(wheelAcc.y);
@@ -1157,8 +1207,10 @@ function onwheel(x, y, wx, wy, button, cmd, shift) {
         ui.scroll.row -= dy; ui.scroll.bar -= dx; clampScroll();
     } else if (find(x, y, "setup-row") || find(x, y, "setup-scroll")) {
         ui.setup.scroll = Math.max(0, Math.min((ui.setup.scroll || 0) - dy, S.tracks.length - 7));   // 7 rows: hudSetup
+    } else if (find(x, y, "genre-row")) {
+        ui.genreScroll = Math.max(0, (ui.genreScroll || 0) - dy);   // hudGenres clamps the end
     } else { wheelAcc.x = wheelAcc.y = 0; return; }
-    if (before === ui.scroll.row + "," + ui.scroll.bar + "," + ui.setup.scroll) return;
+    if (before === ui.scroll.row + "," + ui.scroll.bar + "," + ui.setup.scroll + "," + ui.genreScroll) return;
     redraw();
     lastKey = regionKey();
 }

@@ -11,6 +11,7 @@ How the model samples, for the whole request.
 | **TOP-K** | 0–500 (off) | sample only from the K most likely choices |
 | **ESC** | 1–3 (1) | raise the temperature on each retry after a rejected result |
 | **TAKES** | 1–16 (1) | how many versions to generate in one request (see [Takes](output.md)) |
+| **PROB** | 5–100 % (ALL) | regenerate only this share of the painted bars, picked at random (the seed picks the same bars again); the rest stay as they are. The roll dims the painted bars that were left out. AR tracks always generate all their bars |
 | **NOVELTY** | on / off | reject a result that copies the context |
 | **SILENCE** | on / off | reject a result with empty bars |
 | **SHUFFLE** | on / off | vary the order in which the targets are generated |

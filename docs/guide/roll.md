@@ -15,10 +15,12 @@ lists the current targets (`TGT LEAD (AR)`), or says **PAINT BARS** when there a
 |---|---|
 | Click or drag across bars | paint them for rewriting (orange brackets). Drag again from a painted bar to unpaint. |
 | **AR** | write the whole track (autoregressive), including a track with no clip in this scene yet; it then gets one |
+| Click a bar of an **AR** track | start writing there: the bars before it are kept as the track's own history (an orange notch marks the start). Click it again to start from bar 1 |
 | **IG** | ignore the track: it is neither written nor used as context |
 | Click a track name | select it, for the [TRACK](track.md) and [MASKS](masks.md) controls |
 
-Painting bars on an **AR** or ignored track switches those off: the three modes are exclusive.
+Painting bars on an ignored track switches it off; on an **AR** track a click sets where it starts. To paint bars on
+an AR track, turn **AR** off first.
 
 !!! note "Scenes"
     MIDI-GPT works on the selected scene. All its clips must share one time signature, and the scene needs at least
@@ -28,6 +30,7 @@ Painting bars on an **AR** or ignored track switches those off: the three modes 
 
 - **Infill** keeps everything around the painted bars, so the new notes join the existing part at both ends: good for
   fixing a bar or varying the end of a phrase.
-- **AR** writes the track from its start. Use it for a new part, or to replace one completely.
+- **AR** writes the track from its start, or from the bar you click: continue a part from bar 9 and keep bars 1–8
+  as they are. Use it for a new part, an ending, or to replace one completely.
 
 <video src="../assets/video/rewrite.mp4" poster="../assets/video/rewrite.jpg" autoplay muted loop playsinline></video>

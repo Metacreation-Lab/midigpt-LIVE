@@ -9,6 +9,10 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
 ### Added
 - Prism and expressive models: **KEY**, **RANGE**, **SILENCE** and **PCS** track controls, shown when the model has
   them, and context windows up to 16 bars.
+- **PROB** (SAMPLE): regenerate only a random share of the painted bars; the rest stay as context, and the roll
+  dims the bars left out.
+- **EXPRESSIVENESS** (TRACK, expressive) and **GENRE** (ENGINE, prism and expressive: a tab over the model list).
+- Partial AR: click a bar of an AR track to start writing there; the bars before it are its history.
 - The roll and the SETUP list scroll with the mouse wheel and the trackpad.
 - The track the TRACK and MASKS controls edit is highlighted in the roll and named in the bay titles, with a
   warning when it isn't being generated.
@@ -22,6 +26,7 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
 
 ### Fixed
 - AR generations always write their result into the target clips.
+- **NOTES** counts only the notes written back, not the target tracks' context bars.
 
 ## [0.2.0]
 

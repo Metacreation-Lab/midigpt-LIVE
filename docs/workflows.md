@@ -33,6 +33,15 @@ Ask for several options and choose by ear.
 
 <video src="assets/video/takes.mp4" poster="assets/video/takes.jpg" autoplay muted loop playsinline></video>
 
+## Vary a little
+
+Change a few bars of a part, not all of it.
+
+1. Paint the whole section on the track, set **PROB** to 25 % and press **GENERATE**: a quarter of the painted bars,
+   picked at random, are rewritten and the rest stay as context. The roll dims the bars that were left out.
+2. Generate again for a different few. With the seed random, each run picks new bars; a locked seed repeats the
+   same bars and the same notes.
+
 ## Keep a groove, change the notes
 
 1. On the target track, turn on **RHYTHM** and choose **EXACT** to keep onsets where you draw them, or **GRID** for

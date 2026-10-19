@@ -54,7 +54,7 @@ PAGES = {
         knobs=[("POLY", 74, 343, 26), ("LENGTH", 198, 343, 26), ("TRACK TEMP", 322, 343, 26), ("DENSITY", 136, 343, 26),
                ("KEY", 58, 445, 14), ("RANGE", 151, 445, 14), ("SILENCE", 244, 445, 14), ("PCS", 337, 445, 14),
                ("TEMP", 442, 327, 22), ("TOP-P", 539, 327, 22), ("TOP-K", 636, 327, 22),
-               ("ESC", 442, 412, 15), ("TAKES", 539, 412, 15), ("SEED", 636, 412, 15)],
+               ("ESC", 424, 412, 15), ("TAKES", 484, 412, 15), ("PROB", 544, 412, 15), ("SEED", 628, 412, 15)],
         toggles=[("NOVELTY", 420, 481, 44, 16), ("SILENCE CHK", 517, 481, 44, 16), ("SHUFFLE", 614, 481, 44, 16)],
         keys=[], screens=[]),
     # ENGINE for models that cannot switch velocity / microtiming: no toggles, the model list centred

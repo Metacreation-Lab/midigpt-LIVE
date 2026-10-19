@@ -54,14 +54,15 @@ The families differ, and the device reads what a model takes from `/info?model=<
 |---|---|---|---|
 | Context (`model_dim_options`) | 4, 8 bars | 4, 8, 12, 16 | 4, 8, 12, 16 |
 | Context tokens | 2048 | 4096 | 4096 |
-| Track controls | density, min/max polyphony, min/max duration | key, pitch range, silence, min/max duration; bar-level density, polyphony and pitch-class set | as prism, plus NOMML |
+| Track controls | density, min/max polyphony, min/max duration | key, pitch range, silence, min/max duration; bar-level density, polyphony and pitch-class set | as prism, plus NOMML (EXPRESSIVENESS) |
+| Genre (`controls.genre`, ENGINE's GENRE tab) | – | 18 (`capabilities.genres`) | 18 |
 | Velocity / microtiming | fixed | fixed | switchable (on unless sent `false`) |
 
 `set_attr()` sends a control under the name `/info`'s `attributes` lists: a plain name goes in the track's `attributes`, a `bar_*` one in `bar_attributes`, once per generated bar; one the model lacks is left out. `controls.velocity` / `controls.microtiming` go only to a model whose capabilities say `switchable_velocity` / `switchable_microtiming` (the others reject microtiming), as an explicit bool from the ENGINE toggles (on by default).
 
 ### Server API (MIDI-GPT HTTP)
 
-`GET /health`, `GET /info?model=<id>` (capabilities: `model_dim_options`, `max_context_tokens`, `switchable_velocity`, `switchable_microtiming`, `genres`; `attributes`; `resolution`), `GET /models`, `POST /generate` (body: `score`, `request`, `request_id`, `model`, `stream`), and `POST /generate/<id>/cancel`. `/health` is polled every 15 s, backing off to 60 s while the server doesn't answer. Progress frames carry `context_tokens` (the current step's prompt), `step_generated_tokens` and `generated_tokens` (the whole request); CTX is the first two summed, and the reply's `tokens.peak_context_tokens` at the end. Ignored tracks aren't in the prompt; replies come back at 1920 ticks per beat.
+`GET /health`, `GET /info?model=<id>` (capabilities: `model_dim_options`, `max_context_tokens`, `switchable_velocity`, `switchable_microtiming`, `genres`; `attributes`; `resolution`), `GET /models`, `POST /generate` (body: `score`, `request`, `request_id`, `model`, `stream`), and `POST /generate/<id>/cancel`. `/health` is polled every 15 s, backing off to 60 s while the server doesn't answer. Progress frames carry `context_tokens` (the current step's prompt), `step_generated_tokens` and `generated_tokens` (the whole request); CTX is the first two summed, and the reply's `tokens.peak_context_tokens` at the end. Ignored tracks aren't in the prompt; replies come back at 1920 ticks per beat. `config.infill_probability` (PROB) makes the server generate a random subset of the infill bars; the reply's `generated_bars` lists them per track, and only those are written back (`apply_generated_bars`).
 
 ### Startup
 
@@ -81,7 +82,7 @@ The families differ, and the device reads what a model takes from `/info?model=<
 
 ## Panel assets
 
-`media/panel/midigpt_*.png` are Blender renders of the exact geometry `tools/frontend_assets.py` builds; only the lighting differs. `tools/export_panel_assets.py` writes its own lo-fi shading and would overwrite them (it still writes `midigpt_panel_spec.js`). To re-render:
+`media/panel/midigpt_*.png` are Blender renders of the exact geometry `tools/frontend_assets.py` builds; only the lighting differs. `tools/export_panel_assets.py` writes its own lo-fi shading and would overwrite them; after a layout change in `frontend_assets.py`, run it with `--spec-only` to rewrite just `midigpt_panel_spec.js`. Knobs are sprites, so moving or adding one needs no re-render; the page backgrounds only carry bays, screens and toggle recesses. To re-render:
 
 ```bash
 python3 tools/video/asset_fields.py dist/assets/fields           # heightfields + materials per asset (and the lo-fi PNGs)
