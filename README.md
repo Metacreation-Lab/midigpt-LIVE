@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Ableton Live 11 | 12](https://img.shields.io/badge/Ableton%20Live-11%20%7C%2012-000?logo=abletonlive&logoColor=fff)](https://www.ableton.com/live/)
 [![Max for Live](https://img.shields.io/badge/Max%20for%20Live-8.6%20%7C%209-555)](https://www.ableton.com/live/max-for-live/)
-[![Python 3.10–3.12](https://img.shields.io/badge/python-3.10%E2%80%933.12-3776AB?logo=python&logoColor=fff)](https://www.python.org/)
+[![Python 3.10–3.14](https://img.shields.io/badge/python-3.10%E2%80%933.14-3776AB?logo=python&logoColor=fff)](https://www.python.org/)
 [![powered by MIDI-GPT](https://img.shields.io/badge/powered%20by-MIDI--GPT-eb1c3b)](https://github.com/Metacreation-Lab/MIDI-GPT)
 [![arXiv](https://img.shields.io/badge/arXiv-2501.17011-b31b1b)](https://arxiv.org/abs/2501.17011)
 [![HuggingFace](https://img.shields.io/badge/HuggingFace-Metacreation%2FMIDI--GPT-FFD21E?logo=huggingface&logoColor=000)](https://huggingface.co/Metacreation/MIDI-GPT)
@@ -59,7 +59,7 @@ Companion project: [MIDI-GPT for REAPER](https://github.com/Metacreation-Lab/mid
 | **Ableton Live** | 11 or 12: Suite, or Standard with the Max for Live add-on |
 | **Max** | the Max bundled with Live: 8.6 (Live 11 to 12.1) or 9 (Live 12.2 and later) |
 | **OS** | macOS. The installer also runs on Linux; on Windows install the device and server by hand. |
-| **Server** | Python 3.10–3.12 and [`midigpt`](https://pypi.org/project/midigpt/) 0.4.0; the installer sets these up |
+| **Server** | Python 3.10–3.14 (3.10–3.12 on Intel Macs) and [`midigpt`](https://pypi.org/project/midigpt/) 0.4.0; the installer sets these up |
 | **Hugging Face** | a free account that has accepted the [model license](https://huggingface.co/Metacreation/MIDI-GPT), and an access token: see [Hugging Face Access](#hugging-face-access) |
 | **Disk** | about 1 GB for the server environment, plus the model: 83 MB (`yellow_small`) or 350 MB (`yellow_medium`) |
 | **Hardware** | any recent Mac; no GPU needed |
@@ -92,7 +92,7 @@ Options go after `bash -s --`, for example `curl -fsSL …/bootstrap.sh | bash -
    | `MIDI-GPT.amxd` | the device you use |
    | `MIDI-GPT Instrument.amxd` | a small tag MIDI-GPT adds to each track to remember its instrument; you never add it yourself |
 
-2. **A Python environment** (any folder works):
+2. **A Python environment** with Python 3.10–3.14, or 3.10–3.12 on an Intel Mac (any folder works):
 
    ```bash
    python3.12 -m venv ~/midigpt-server

@@ -48,7 +48,7 @@ Options go after `bash -s --`, for example `… | bash -s -- --no-server`:
     | `MIDI-GPT.amxd` | the device you use |
     | `MIDI-GPT Instrument.amxd` | a small tag MIDI-GPT adds to each track to remember its instrument; you never add it yourself |
 
-2. **A Python environment** (any folder works):
+2. **A Python environment** with Python 3.10–3.14, or 3.10–3.12 on an Intel Mac (any folder works):
 
     ```bash
     python3.12 -m venv ~/midigpt-server

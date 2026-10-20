@@ -16,6 +16,7 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
 - **NO LINK** points to the server window, which says why a server stopped.
 - The server is midigpt 0.4.0: it says plainly when the model is gated, and a model downloaded before keeps
   working when Hugging Face refuses or can't be reached.
+- The server runs on Python 3.10–3.14 (3.10–3.12 on Intel Macs, where PyTorch stops at 3.12).
 
 ## [0.2.0]
 

@@ -241,18 +241,22 @@ fi
 if [ "$SERVER" = 0 ]; then
     ok "skipped (re-run with --server to set it up later)"
 else
-    # Python 3.10-3.12: midigpt has prebuilt wheels for those (newer Pythons would compile it from source)
+    # Python 3.10-3.14: midigpt has prebuilt wheels for those. Intel Macs stop at 3.12: torch has no Intel Mac
+    # builds for newer Pythons.
+    PYMAX=14
+    [ "$OS" = Darwin ] && [ "$(uname -m)" = x86_64 ] && PYMAX=12
+    py_ok() { "$1" -c "import sys; sys.exit(not ((3,10) <= sys.version_info[:2] <= (3,$PYMAX)))" 2>/dev/null; }
     PY="" UV=""
     if command -v uv >/dev/null; then UV="$(command -v uv)"
     elif [ -x "$HOME/.local/bin/uv" ]; then UV="$HOME/.local/bin/uv"
     else
-        for c in python3.12 python3.11 python3.10 python3; do
-            if command -v "$c" >/dev/null && "$c" -c 'import sys; sys.exit(not ((3,10) <= sys.version_info[:2] <= (3,12)))' 2>/dev/null; then
+        for c in python3.12 python3.13 python3.14 python3.11 python3.10 python3; do
+            if command -v "$c" >/dev/null && py_ok "$c"; then
                 PY="$(command -v "$c")"; break
             fi
         done
         if [ -z "$PY" ]; then
-            echo "    No Python 3.10-3.12 found. uv (https://docs.astral.sh/uv) can install one just for MIDI-GPT."
+            echo "    No Python 3.10-3.$PYMAX found. uv (https://docs.astral.sh/uv) can install one just for MIDI-GPT."
             ask "Install uv?" y || die "Install Python 3.12 (python.org or Homebrew: brew install python@3.12) and re-run."
             curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null || die "uv install failed."
             UV="$HOME/.local/bin/uv"
@@ -261,7 +265,7 @@ else
 
     VENV="$SERVER_DIR/.venv"
     mkdir -p "$SERVER_DIR"
-    if [ -x "$VENV/bin/python" ] && "$VENV/bin/python" -c 'import sys; sys.exit(not ((3,10) <= sys.version_info[:2] <= (3,12)))' 2>/dev/null; then
+    if [ -x "$VENV/bin/python" ] && py_ok "$VENV/bin/python"; then
         ok "using the existing environment in $VENV"
     else
         rm -rf "$VENV"
