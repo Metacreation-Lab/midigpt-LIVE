@@ -202,7 +202,7 @@ The roll shows every MIDI track of the selected scene. A track is generated when
 
 ### Takes
 
-Set **TAKES** above 1 to get several versions from one request. The **OUTPUT** section lists them: click a take to write it into the clips, or the ↩ key to hear what was there before. **KEEP** commits the take you are on.
+Set **TAKES** above 1 to get several versions from one request. The **OUTPUT** section lists them: click a take to write it into the clips, or the ↩ key to hear what was there before. **KEEP** commits the take you are on. The takes stay while you work elsewhere in Live, and always go into the clips they were generated for.
 
 ### Track Instruments
 

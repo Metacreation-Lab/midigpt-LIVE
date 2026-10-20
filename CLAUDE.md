@@ -44,7 +44,7 @@ The panel window is 960 x 640, split into region jsuis (top, roll, main, output,
 
 mgraphics gotchas met while building the panel: `image_surface_draw` paints through the current path and with the current source alpha (call `new_path()` and `set_source_rgba(1,1,1,1)` first); group alpha (`push_group`) shifts output, so dimmed parts are pre-dimmed sprites (`_aNN`); Max caches `require()`d modules, so edited modules are `include()`d; `open` is a built-in jsui message (never name a function `open`). Keep these scripts ES5.
 
-Takes: before the first take is written, `snapshot_targets()` saves each target clip; `take -1` restores it and Keep commits the selected take. **Only use the Live 11 note API** (`get_notes_extended`, `remove_notes_extended`, `add_new_notes`): the old one makes Live block the device with a "uses an older process to modify MIDI notes" dialog. Only the generated bars are rewritten, and each bar's notes are sent sorted by onset.
+Takes: before the first take is written, `snapshot_targets()` saves each target clip; `take -1` restores it and Keep commits the selected take. A batch (`last_generation`) lasts until the next generation or Keep, whatever is selected in Live: takes go into the clip ids captured with the request (`capture_write_ctx`), never into the selection. **Only use the Live 11 note API** (`get_notes_extended`, `remove_notes_extended`, `add_new_notes`): the old one makes Live block the device with a "uses an older process to modify MIDI notes" dialog. Only the generated bars are rewritten, and each bar's notes are sent sorted by onset.
 
 Model facts the UI depends on: density is drum-only on the current checkpoints (the server 422s otherwise); pitch range only applies with scale lock on; remix replaces the rhythm grid; top-p must be in (0, 1].
 
@@ -72,6 +72,7 @@ The families differ, and the device reads what a model takes from `/info?model=<
 
 - **Only real performance controls are Live parameters.** Anything driven by JS uses `parameter_invisible: 2` (Hidden), or every JS `set` becomes a Live parameter write: automation, undo history and set size all grow with it. A device's `parameters.parameter_overrides` block overrides what a subpatcher says.
 - **Create Live API observers once**, then retarget them with `.id = …` **followed by re-setting `.property`**: that is what fires the callback once with the new object's value (without it the clip length is never read). Creating a new observer per selection leaks them.
+- **Clips appearing or going** in the selected scene are seen by one `has_clip` observer per MIDI track (`watch_scene_slots`), retargeted when the scene or the tracks change; it re-reads only that track's row.
 - **Don't walk the Live set on clicks.** `panel_scene()` caches the scene's tracks, clips and notes until a selection, clip, track or scene change invalidates them (`invalidate_scene_cache()`).
 - **Dict writes are coalesced** (`schedule_dict_sync`, 100 ms). The dicts only exist so state survives a script reload.
 - **Prefer one widget over many objects.** Moving or recolouring dozens of `live.*` objects with scripting redraws each one separately; the panel is a few jsuis for that reason. Native `live.*` widgets where they fit (the tag's menus): relabel a `live.menu` / `live.tab` with `_parameter_range`.

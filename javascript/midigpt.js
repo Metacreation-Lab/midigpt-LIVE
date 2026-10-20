@@ -1197,9 +1197,9 @@ function apply_generated_bars(ctx, gb){
 
 // Set after a num_candidates>1 generation completes -- lets select_candidate()
 // re-write a different candidate's score with zero network calls, since all
-// candidates already arrived in the one /generate response. Cleared (old
-// candidates simply forgotten) the moment a new generation starts or the
-// user's selection changes -- see clear_generation_state().
+// candidates already arrived in the one /generate response. Kept until the next generation or KEEP, whatever is
+// selected in Live meanwhile: a take is written into the clips it was generated for (ctx.write_clip_ids), never
+// into the selection, and a target clip deleted since is skipped.
 var last_generation = null;
 
 function handle_batch_response(result){
@@ -1238,18 +1238,6 @@ function select_candidate(idx){
     last_generation.selected = idx;
     flog("select_candidate: switched to " + idx + " (seed " + candidates[idx].seed + ")");
     schedule_panel();
-}
-
-// Invalidates the active batch on scene/track selection change or clip
-// edit -- a swap after the user has moved on must never write into the
-// wrong clip. Losing the picker on selection change is the deliberate,
-// safe tradeoff.
-function clear_generation_state(){
-    if (last_generation) {
-        flog("clear_generation_state: selection changed, forgetting batch");
-        last_generation = null;
-        schedule_panel();
-    }
 }
 
 function write_score_to_clips(score, ctx){
@@ -1454,6 +1442,44 @@ function invalidate_clip_track(clip_id){
         }
     } catch (e) { flog("invalidate_clip_track: " + e); }
     panel_invalidate_scene();
+}
+
+// A clip added to or deleted from the selected scene re-reads its track's row: one has_clip observer per MIDI
+// track, on that track's slot in the selected scene. Created once per track and retargeted (.id, then .property,
+// which fires once with the slot's value: remembered, not treated as a change) when the scene or the tracks change.
+var slot_watch = [], slot_watch_ids = [], slot_has = [];
+var slot_api = null;
+var slot_task = new Task(watch_scene_slots, this);
+function schedule_scene_slots(){ slot_task.schedule(0); }   // out of the Live API notification that asked for it
+
+function slot_changed(i){
+    return function (args){
+        if (args[0] !== "has_clip") return;
+        var v = +args[1];
+        if (slot_has[i] === undefined) { slot_has[i] = v; return; }
+        if (v === slot_has[i]) return;
+        slot_has[i] = v;
+        panel_invalidate_tracks([i]);
+    };
+}
+
+function watch_scene_slots(){
+    try {
+        if (!slot_api) slot_api = new LiveAPI();
+        for (var i = 0; i < Math.max(track_ids.length, slot_watch.length); i++) {
+            var sid = 0;
+            if (i < track_ids.length && current_scene >= 0) {
+                slot_api.id = track_ids[i];
+                sid = +strip_ids(slot_api.get("clip_slots"))[current_scene] || 0;
+            }
+            if (!slot_watch[i]) { if (!sid) continue; slot_watch[i] = new LiveAPI(slot_changed(i)); }
+            if (slot_watch_ids[i] === sid) continue;
+            slot_watch_ids[i] = sid;
+            slot_has[i] = undefined;
+            slot_watch[i].id = sid;
+            if (sid) slot_watch[i].property = "has_clip";
+        }
+    } catch (e) { flog("watch_scene_slots: " + e); }
 }
 
 /*________________________________________________________________________
@@ -1797,6 +1823,7 @@ function scenes_changed(args){
         scene_ids=new_ids;
         all_clips_params = new_clips_params;
         refresh_params_structure();
+        schedule_scene_slots();
     }
 
     function copy_scene(p, i){
@@ -1869,6 +1896,7 @@ function tracks_changed(args){
         track_ids=new_ids;
         all_clips_params = new_clips_params;
         refresh_params_structure();
+        schedule_scene_slots();
         schedule_panel();   // track_ids just changed shape
     }
 
@@ -1957,7 +1985,7 @@ function scene_selected(args){
         current_scene = scene_ids.indexOf(id);
         debug && post("current scene is # ", +current_scene, " with id: ", +id, "\n");
         invalidate_scene_cache();
-        clear_generation_state();
+        schedule_scene_slots();
         schedule_panel();
     }
 }
@@ -1983,7 +2011,6 @@ function track_selected(args){
         // Selecting a track changes no clip: refresh only that track's instrument (its devices may have changed
         // while it was selected), not the whole scene.
         if (current_track >= 0) panel_invalidate_tracks([current_track], true);
-        clear_generation_state();
         schedule_panel();
     }
 }
@@ -1994,7 +2021,6 @@ function clip_edited(args){
         invalidate_clip_track(id);
         if (id){
             debug && post("clip  #", id, "is detailed ", "\n");
-            clear_generation_state();
 
             // Retarget the three clip observers created once in
             // init_live_api() (re-creating them here leaked 3 observers
@@ -2008,8 +2034,6 @@ function clip_edited(args){
             clip_len.id = id;
             clip_len.property = "end_time";
 
-            // there's no per-slot has_clip observer: a clip selection is when another track's clip
-            // most often just appeared or went, so refresh the panel here too
             schedule_panel();
         } else {
             debug && post("no clip is detailed ", "\n");

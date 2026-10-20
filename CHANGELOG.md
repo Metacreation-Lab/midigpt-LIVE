@@ -4,6 +4,13 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+- Takes stay available when you click elsewhere in Live (another track, scene or clip): switching takes still
+  writes into the clips they were generated for. They go on the next generation or **KEEP**.
+- Adding or deleting a clip in the selected scene updates the window right away, without clicking the track.
+
 ## [0.2.1]
 
 ### Added
