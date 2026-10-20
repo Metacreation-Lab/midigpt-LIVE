@@ -6,6 +6,8 @@ folder that is copied into Live's User Library as is.
   dist/MIDI-GPT/MIDI-GPT.amxd
   dist/MIDI-GPT/MIDI-GPT Instrument.amxd      the track tag; MIDI-GPT opens it by file
   dist/MIDI-GPT/README.txt
+  dist/MIDI-GPT/Server/                         the server launchers (server/ in the repo): start-server.sh,
+                                                Start MIDI-GPT Server.command / .bat, the Linux menu entry
   dist/MIDI-GPT-for-Live-<version>.zip         what install.sh downloads (a GitHub release asset)
 
 The scripts are frozen with their include()d and require()d files inlined:
@@ -30,6 +32,7 @@ MEDIA = os.path.join(ROOT, "media", "panel")
 DIST = os.path.join(ROOT, "dist")
 FOLDER = "MIDI-GPT"
 DEVICES = ["MIDI-GPT.amxd", "MIDI-GPT Instrument.amxd"]
+SERVER = os.path.join(ROOT, "server")
 NODE_SCRIPTS = {"midigpt_node.js"}      # run by Node, which has its own require()
 
 INCLUDE = re.compile(r"""^[ \t]*include\(\s*["']([^"']+)["']\s*\)\s*;?[ \t]*$""", re.M)
@@ -44,8 +47,10 @@ Install
   same folder: MIDI-GPT adds "MIDI-GPT Instrument" to your tracks by itself.
 
 Use
-  1. Start the MIDI-GPT server ("Start MIDI-GPT Server" from the installer,
-     or: midigpt-http --pretrained yellow_medium --port 3456).
+  1. Start the MIDI-GPT server: in the Server folder, double-click
+     "Start MIDI-GPT Server.command" (macOS) or "Start MIDI-GPT Server.bat"
+     (Windows), or run start-server.sh (Linux). The installer sets the
+     server up; see the link below to do it by hand.
   2. Drag MIDI-GPT onto a track and open its window.
   3. The server address is in SETUP (default http://127.0.0.1:3456).
 
@@ -123,12 +128,16 @@ def main():
 
     with open(os.path.join(out, "README.txt"), "w") as f:
         f.write(README.format(version=version, repo=repo))
+    shutil.copytree(SERVER, os.path.join(out, "Server"))   # keeps the scripts' exec bits
     shutil.rmtree(stage)
 
     zpath = os.path.join(DIST, "MIDI-GPT-for-Live-%s.zip" % version)
     with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
-        for name in sorted(os.listdir(out)):
-            z.write(os.path.join(out, name), FOLDER + "/" + name)
+        for base, dirs, names in os.walk(out):
+            dirs.sort()
+            for name in sorted(names):
+                path = os.path.join(base, name)
+                z.write(path, FOLDER + "/" + os.path.relpath(path, out))
     print("wrote", os.path.relpath(zpath, ROOT), "(%.1f KB)" % (os.path.getsize(zpath) / 1024))
 
 

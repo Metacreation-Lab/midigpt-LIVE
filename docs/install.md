@@ -41,18 +41,25 @@ Options go after `bash -s --`, for example `… | bash -s -- --no-server`:
 
 1. **The devices.** Download `MIDI-GPT-for-Live-<version>.zip` from the
    [latest release](https://github.com/Metacreation-Lab/midigpt-LIVE/releases/latest), unzip it, and move the `MIDI-GPT`
-   folder into your User Library (by default `~/Music/Ableton/User Library`). Keep both devices together:
+   folder into your User Library (by default `~/Music/Ableton/User Library`). Keep its contents together:
 
     | File | |
     |---|---|
     | `MIDI-GPT.amxd` | the device you use |
     | `MIDI-GPT Instrument.amxd` | a small tag MIDI-GPT adds to each track to remember its instrument; you never add it yourself |
+    | `Server/` | the server launchers: **Start MIDI-GPT Server.command** (macOS), **.bat** (Windows), `start-server.sh` (Linux) |
 
-2. **A Python environment** with Python 3.10–3.14, or 3.10–3.12 on an Intel Mac (any folder works):
+2. **A Python environment** with Python 3.10–3.14 (3.10–3.12 on an Intel Mac), in the server folder the launchers look in:
+
+    | OS | server folder |
+    |---|---|
+    | macOS | `~/Library/Application Support/MIDI-GPT/server` |
+    | Linux | `~/.config/MIDI-GPT/server` |
+    | Windows | `%APPDATA%\MIDI-GPT\server` |
 
     ```bash
-    python3.12 -m venv ~/midigpt-server
-    source ~/midigpt-server/bin/activate
+    python3.12 -m venv ~/Library/Application\ Support/MIDI-GPT/server/.venv     # Windows: py -3.12 -m venv "%APPDATA%\MIDI-GPT\server\.venv"
+    source ~/Library/Application\ Support/MIDI-GPT/server/.venv/bin/activate    # Windows: "%APPDATA%\MIDI-GPT\server\.venv\Scripts\activate"
     ```
 
 3. **MIDI-GPT:**
@@ -69,18 +76,17 @@ Options go after `bash -s --`, for example `… | bash -s -- --no-server`:
     hf auth login
     ```
 
-5. **Start the server:**
+5. **Start the server** from the `Server` folder inside `MIDI-GPT`: double-click **Start MIDI-GPT Server.command** (macOS)
+    or **Start MIDI-GPT Server.bat** (Windows), or run `start-server.sh` (Linux). The first start downloads the model.
+    Leave the window open while you work; Ctrl+C stops the server. To use another model or port, put `MODEL=yellow_small`
+    or `PORT=3457` lines in a `server.conf` file in the server folder.
 
-    ```bash
-    midigpt-http --pretrained yellow_medium --host 127.0.0.1 --port 3456
-    ```
-
-    The first start downloads the model from Hugging Face. Leave the window open while you work; Ctrl+C stops the
-    server.
+    !!! note "GPU or CPU"
+        The server uses the GPU when there is one (CUDA, or MPS on a Mac). **On a Mac, MPS can be slower than the CPU** for a model this size (twice as slow on an Intel Mac with a Radeon GPU): if generations are slow, start it with `start-server.sh --device cpu`.
 
 ## The server on another computer
 
-The server can run on a more powerful machine, such as a studio computer. Start it there with `--host 0.0.0.0` so
+The server can run on a more powerful machine, such as a studio computer. Start it there with `--host 0.0.0.0` (`start-server.sh --host 0.0.0.0`) so
 other machines can reach it, then enter its address on the device's [SETUP](guide/setup.md) page. The device
 remembers it for every set.
 

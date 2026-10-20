@@ -28,7 +28,7 @@
 | Port 3456 already in use | another MIDI-GPT server is running (MIDI-GPT for REAPER uses the same port): use it, or start this one with `--port 3457` and change the address |
 | The device won't load after a download | clear the macOS quarantine flag (see [Install](install.md#macos-quarantine)) |
 | The first generation is slow | the server loads the model on the first request; later ones are faster |
-| Generation is slow overall | try `yellow_small`, or run the server on a faster machine |
+| Generation is slow overall | on a Mac the GPU (MPS) can be slower than the CPU: start the server with `start-server.sh --device cpu`. Else try `yellow_small`, or run the server on a faster machine |
 
 ## Model limits
 

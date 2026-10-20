@@ -25,6 +25,7 @@ media/panel/     the panel's images (rendered in Blender)
 tools/           build, release, freezing, asset, video and dev scripts
 docs/            this site (MkDocs)
 install.sh       the installer (bootstrap.sh downloads and runs it)
+server/          the server launchers, shipped as MIDI-GPT/Server: start-server.sh, Start MIDI-GPT Server.command / .bat
 ```
 
 ## Build

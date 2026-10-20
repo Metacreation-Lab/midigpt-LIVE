@@ -10,10 +10,15 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
 - Hugging Face access for the gated models: the installer checks it before downloading, explains the license and
   token steps, and saves a pasted token where the server reads it (`--yes` uses `HF_TOKEN`). The README and the
   install docs have a Hugging Face account step.
+- Server launchers for each system in the release's `Server` folder (`server/` in the repo): `start-server.sh`,
+  **Start MIDI-GPT Server.command** (macOS) and **.bat** (Windows), and a Linux menu entry. The installer uses them
+  instead of writing its own, and keeps the model and port in `server.conf`.
 
 ### Changed
 - The **Start MIDI-GPT Server** window stays open when the server stops on an error, so its message can be read.
 - **NO LINK** points to the server window, which says why a server stopped.
+- The server runs on the GPU when there is one (`--device auto`; midigpt-http used the CPU without it). On a Mac,
+  MPS can be slower than the CPU: `start-server.sh --device cpu`.
 - The server is midigpt 0.4.0: it says plainly when the model is gated, and a model downloaded before keeps
   working when Hugging Face refuses or can't be reached.
 - The server runs on Python 3.10–3.14 (3.10–3.12 on Intel Macs, where PyTorch stops at 3.12).

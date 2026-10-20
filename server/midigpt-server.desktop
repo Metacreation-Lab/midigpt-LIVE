@@ -1,0 +1,9 @@
+[Desktop Entry]
+# Linux menu entry for the MIDI-GPT server; install.sh copies it to ~/.local/share/applications with Exec pointing at
+# start-server.sh in the installed MIDI-GPT/Server folder.
+Type=Application
+Name=Start MIDI-GPT Server
+Comment=The MIDI-GPT server for the Ableton Live device
+Exec=bash "@START_SERVER@"
+Terminal=true
+Categories=AudioVideo;Audio;Music;

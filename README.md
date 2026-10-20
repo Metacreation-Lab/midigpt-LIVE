@@ -85,18 +85,25 @@ Options go after `bash -s --`, for example `curl -fsSL …/bootstrap.sh | bash -
 
 ### Manual Install
 
-1. **The device.** Download `MIDI-GPT-for-Live-<version>.zip` from the [latest release](https://github.com/Metacreation-Lab/midigpt-LIVE/releases/latest), unzip it, and move the `MIDI-GPT` folder into your User Library (by default `~/Music/Ableton/User Library`). Keep both devices together:
+1. **The device.** Download `MIDI-GPT-for-Live-<version>.zip` from the [latest release](https://github.com/Metacreation-Lab/midigpt-LIVE/releases/latest), unzip it, and move the `MIDI-GPT` folder into your User Library (by default `~/Music/Ableton/User Library`). Keep its contents together:
 
    | file | |
    |---|---|
    | `MIDI-GPT.amxd` | the device you use |
    | `MIDI-GPT Instrument.amxd` | a small tag MIDI-GPT adds to each track to remember its instrument; you never add it yourself |
+   | `Server/` | the server launchers: **Start MIDI-GPT Server.command** (macOS), **.bat** (Windows), `start-server.sh` (Linux) |
 
-2. **A Python environment** with Python 3.10–3.14, or 3.10–3.12 on an Intel Mac (any folder works):
+2. **A Python environment** with Python 3.10–3.14 (3.10–3.12 on an Intel Mac), in the server folder the launchers look in:
+
+   | OS | server folder |
+   |---|---|
+   | macOS | `~/Library/Application Support/MIDI-GPT/server` |
+   | Linux | `~/.config/MIDI-GPT/server` |
+   | Windows | `%APPDATA%\MIDI-GPT\server` |
 
    ```bash
-   python3.12 -m venv ~/midigpt-server
-   source ~/midigpt-server/bin/activate
+   python3.12 -m venv ~/Library/Application\ Support/MIDI-GPT/server/.venv     # Windows: py -3.12 -m venv "%APPDATA%\MIDI-GPT\server\.venv"
+   source ~/Library/Application\ Support/MIDI-GPT/server/.venv/bin/activate    # Windows: "%APPDATA%\MIDI-GPT\server\.venv\Scripts\activate"
    ```
 
 3. **MIDI-GPT:**
@@ -107,19 +114,18 @@ Options go after `bash -s --`, for example `curl -fsSL …/bootstrap.sh | bash -
 
    On an Intel Mac, add `"torch<2.3" "numpy<2"` (the last PyTorch built for Intel Macs).
 
-4. **Sign in to Hugging Face** (see [Hugging Face Access](#hugging-face-access)):
+4. **Sign in to Hugging Face** with your token (see [Hugging Face Access](#hugging-face-access)):
 
    ```bash
    hf auth login
    ```
 
-5. **Start the server:**
+5. **Start the server** from the `Server` folder inside `MIDI-GPT`: double-click **Start MIDI-GPT Server.command** (macOS)
+   or **Start MIDI-GPT Server.bat** (Windows), or run `start-server.sh` (Linux). The first start downloads the model.
+   Leave the window open while you work; Ctrl+C stops the server. To use another model or port, put `MODEL=yellow_small`
+   or `PORT=3457` lines in a `server.conf` file in the server folder.
 
-   ```bash
-   midigpt-http --pretrained yellow_medium --host 127.0.0.1 --port 3456
-   ```
-
-   The first start downloads the model from Hugging Face. Leave the window open while you work; Ctrl+C stops the server.
+   The server uses the GPU when there is one (CUDA, or MPS on a Mac). **On a Mac, MPS can be slower than the CPU** for a model this size (twice as slow on an Intel Mac with a Radeon GPU): if generations are slow, start it with `start-server.sh --device cpu`.
 
 ### Hugging Face Access
 
@@ -167,7 +173,7 @@ The device sends the scene to the server as a score, with what to generate and h
 
 ### Quick Start
 
-1. Start the server: **Start MIDI-GPT Server** on the Desktop or in the MIDI-GPT folder, or step 4 above. On the device's **SETUP** page, the light next to the address turns green when the server is reachable.
+1. Start the server: **Start MIDI-GPT Server** on the Desktop or in the MIDI-GPT folder's `Server` folder (step 5 above). On the device's **SETUP** page, the light next to the address turns green when the server is reachable.
 2. In Live's browser, open **User Library › MIDI-GPT** and drag **MIDI-GPT** onto any track. Click the key on the device to open its window.
 3. Run **SETUP › SETUP ALL** once per set: MIDI-GPT guesses each track's instrument from its device and name, lets you confirm each guess, and writes a small **MIDI-GPT Instrument** tag onto each track.
 4. Select a scene with some MIDI clips. In the roll at the top of the window, paint the bars to generate on a track, or turn on **AR** for the whole track.
@@ -189,7 +195,7 @@ The device does not play anything: your tracks keep their own instruments and so
 
 ### Remote Server
 
-The server can run on another computer, such as a studio machine with more power. Start it there with `--host 0.0.0.0` so other machines can reach it, then enter its address (for example `http://192.168.1.20:3456`) on the device's **SETUP** page with **EDIT**. The address is remembered for every set.
+The server can run on another computer, such as a studio machine with more power. Start it there with `--host 0.0.0.0` (`start-server.sh --host 0.0.0.0`) so other machines can reach it, then enter its address (for example `http://192.168.1.20:3456`) on the device's **SETUP** page with **EDIT**. The address is remembered for every set.
 
 ---
 
@@ -248,6 +254,7 @@ When a request fails, the readout under the takes says what went wrong and what 
 |---|---|
 | **NO LINK** in the readout, red light in **SETUP** | the server isn't running or the address is wrong: start it, or check the address. If it stopped at startup, its window says why |
 | The server window says the model is gated | accept the license at [huggingface.co/Metacreation/MIDI-GPT](https://huggingface.co/Metacreation/MIDI-GPT) and save a token: see [Hugging Face Access](#hugging-face-access) |
+| Generation is slow on a Mac | the GPU (MPS) can be slower than the CPU: start the server with `start-server.sh --device cpu` |
 | Port 3456 already in use | another MIDI-GPT server (MIDI-GPT for REAPER uses the same port) is already running: use it, or start this one with `--port 3457` and change the address |
 | **TAG FAILED** | Live didn't load the tag device: drag **MIDI-GPT Instrument** from the MIDI-GPT folder onto the track |
 | **TIME SIG** | the scene's clips use different time signatures |
@@ -268,6 +275,7 @@ javascript/      midigpt.js (Live API, state, HTTP client) and the panel, strip,
 media/panel/     the panel's images, rendered in Blender
 tools/           build, release, freezing, asset and dev scripts
 install.sh       the installer (bootstrap.sh downloads and runs it)
+server/          the server launchers, shipped as MIDI-GPT/Server: start-server.sh, Start MIDI-GPT Server.command / .bat
 ```
 
 ```bash

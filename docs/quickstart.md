@@ -2,8 +2,8 @@
 
 From an empty device to your first take in five steps.
 
-1. **Start the server.** Open **Start MIDI-GPT Server** (on the Desktop, or in the MIDI-GPT folder), or run
-   `midigpt-http` as in [Install](install.md); the first start downloads the model with your Hugging Face token. On the device's **SETUP** page, the light next to the address turns
+1. **Start the server.** Open **Start MIDI-GPT Server** (on the Desktop, or in the MIDI-GPT folder's `Server`
+   folder; see [Install](install.md)); the first start downloads the model with your Hugging Face token. On the device's **SETUP** page, the light next to the address turns
    green when the server answers.
 2. **Add the device.** In Live's browser, open **User Library › MIDI-GPT** and drag **MIDI-GPT** onto any track. Click
    the key on the device to open its window.
