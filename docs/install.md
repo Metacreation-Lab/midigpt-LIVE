@@ -16,13 +16,24 @@ the model; the device never sees it. A model that is already downloaded keeps wo
 
 ## One-line install
 
+macOS and Linux, in Terminal:
+
 ```bash
 curl -fsSL https://metacreation.net/midigpt-live/bootstrap.sh | bash
 ```
 
+Windows, in PowerShell:
+
+```powershell
+irm https://metacreation.net/midigpt-live/bootstrap.ps1 | iex
+```
+
 This downloads the latest release and copies the **MIDI-GPT** folder into your Live User Library (its location is
-read from Live's preferences). It then asks whether to set up a server on this computer: a Python environment in
-`~/Library/Application Support/MIDI-GPT/server` with `midigpt`, a **Start MIDI-GPT Server** launcher, and the model.
+read from Live's preferences). It then asks whether to set up a server on this computer: a Python environment with
+`midigpt` (in `~/Library/Application Support/MIDI-GPT/server`, `~/.config/MIDI-GPT/server` on Linux,
+`%APPDATA%\MIDI-GPT\server` on Windows), a **Start MIDI-GPT Server** launcher (Desktop and Start menu shortcuts on
+Windows), and the model. On Windows it also offers Microsoft's Visual C++ runtime, which PyTorch needs, and the CUDA
+build of PyTorch when there is an NVIDIA GPU.
 If no Hugging Face token is saved yet, it asks for one (see [Hugging Face account](#hugging-face-account)). Skip the
 server if yours runs on another machine.
 
@@ -36,6 +47,9 @@ Options go after `bash -s --`, for example `… | bash -s -- --no-server`:
 | `--zip FILE` | install from a downloaded release zip |
 | `--yes` | accept every default (a Hugging Face token is then read from `HF_TOKEN`) |
 | `--uninstall` | remove everything (see below) |
+
+On Windows the options are PowerShell flags, passed through a script block, for example
+`& ([scriptblock]::Create((irm https://metacreation.net/midigpt-live/bootstrap.ps1))) -NoServer`: `-NoServer` / `-Server`, `-Model`, `-UserLibrary`, `-Zip`, `-Gpu` / `-Cpu` (the PyTorch build), `-Yes`, `-Uninstall`.
 
 ## Manual install
 
@@ -106,6 +120,12 @@ everything:
 
 ```bash
 curl -fsSL https://metacreation.net/midigpt-live/bootstrap.sh | bash -s -- --uninstall
+```
+
+On Windows, in PowerShell:
+
+```powershell
+& ([scriptblock]::Create((irm https://metacreation.net/midigpt-live/bootstrap.ps1))) -Uninstall
 ```
 
 This removes the MIDI-GPT folder from the User Library, the server environment, the launchers and the settings.

@@ -2,12 +2,17 @@
 REM Double-click to start the MIDI-GPT server on Windows: http://127.0.0.1:3456 by default.
 REM Keep this window open while you use MIDI-GPT in Live; Ctrl+C stops the server.
 REM
-REM The server's Python environment is %APPDATA%\MIDI-GPT\server\.venv (or the folder in MIDIGPT_SERVER_DIR), and
-REM server.conf next to it may set MODEL= and PORT=. Arguments go to midigpt-http after the defaults, so they override
-REM them, e.g. --host 0.0.0.0 to reach the server from other computers. --device auto: the GPU when there is one.
+REM The installer (install.ps1) sets up the server's Python environment in %APPDATA%\MIDI-GPT\server\.venv (or the
+REM folder in MIDIGPT_SERVER_DIR, or the server_dir it recorded in live.json), and writes server.conf next to it
+REM (MODEL=, PORT=). Arguments go to midigpt-http after the defaults, so they override them, e.g. --host 0.0.0.0 to
+REM reach the server from other computers. --device auto: the NVIDIA GPU when PyTorch has CUDA, else the CPU.
 setlocal
 
-if defined MIDIGPT_SERVER_DIR (set "SERVER_DIR=%MIDIGPT_SERVER_DIR%") else (set "SERVER_DIR=%APPDATA%\MIDI-GPT\server")
+set "SERVER_DIR=%MIDIGPT_SERVER_DIR%"
+if not defined SERVER_DIR if exist "%APPDATA%\MIDI-GPT\live.json" (
+    for /f "usebackq delims=" %%d in (`powershell -NoProfile -Command "(Get-Content -Raw $env:APPDATA\MIDI-GPT\live.json | ConvertFrom-Json).server_dir"`) do set "SERVER_DIR=%%d"
+)
+if not defined SERVER_DIR set "SERVER_DIR=%APPDATA%\MIDI-GPT\server"
 set "VENV=%SERVER_DIR%\.venv"
 set "MODEL=yellow_medium"
 set "PORT=3456"
@@ -17,10 +22,8 @@ if exist "%SERVER_DIR%\server.conf" (
 
 if not exist "%VENV%\Scripts\midigpt-http.exe" (
     echo The MIDI-GPT server isn't installed ^(no environment in %VENV%^).
-    echo Set it up with Python 3.10-3.14:
-    echo   py -3.12 -m venv "%VENV%"
-    echo   "%VENV%\Scripts\pip" install "midigpt[http,inference]==0.4.0"
-    echo   "%VENV%\Scripts\hf" auth login
+    echo Install it from PowerShell with:
+    echo   ^& ^([scriptblock]::Create^(^(irm https://metacreation.net/midigpt-live/bootstrap.ps1^)^)^) -Server
     echo.
     pause
     exit /b 1

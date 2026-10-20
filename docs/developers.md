@@ -24,7 +24,8 @@ javascript/      midigpt.js (Live API, state, HTTP client), the panel, strip, ta
 media/panel/     the panel's images (rendered in Blender)
 tools/           build, release, freezing, asset, video and dev scripts
 docs/            this site (MkDocs)
-install.sh       the installer (bootstrap.sh downloads and runs it)
+install.sh       the installer for macOS and Linux (bootstrap.sh downloads and runs it)
+install.ps1      the installer for Windows (bootstrap.ps1 downloads and runs it)
 server/          the server launchers, shipped as MIDI-GPT/Server: start-server.sh, Start MIDI-GPT Server.command / .bat
 ```
 
@@ -65,5 +66,5 @@ The panel images come from the device's own panel code, rendered offline; the cl
 
 ## Contributing
 
-Issues and pull requests are welcome. Known gaps: a Windows installer, a MIDI-mappable Generate control, and testing
+Issues and pull requests are welcome. Known gaps: a MIDI-mappable Generate control, and testing
 on Linux.

@@ -25,6 +25,8 @@
 | Symptom | Fix |
 |---|---|
 | The server window says the model is gated, or no access | accept the license at [huggingface.co/Metacreation/MIDI-GPT](https://huggingface.co/Metacreation/MIDI-GPT) with your Hugging Face account and save a token (see [Install](install.md#hugging-face-account)) |
+| Windows: the server stops with a DLL error (`WinError 126`, `c10.dll`) | PyTorch needs Microsoft's Visual C++ runtime: install [vc_redist.x64.exe](https://aka.ms/vc14/vc_redist.x64.exe) |
+| Windows: "Windows protected your PC" when starting the server | click **More info › Run anyway**, or right-click the `.bat` › Properties › **Unblock** (the installer unblocks the files itself) |
 | Port 3456 already in use | another MIDI-GPT server is running (MIDI-GPT for REAPER uses the same port): use it, or start this one with `--port 3457` and change the address |
 | The device won't load after a download | clear the macOS quarantine flag (see [Install](install.md#macos-quarantine)) |
 | The first generation is slow | the server loads the model on the first request; later ones are faster |

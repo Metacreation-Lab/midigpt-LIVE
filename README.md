@@ -58,19 +58,27 @@ Companion project: [MIDI-GPT for REAPER](https://github.com/Metacreation-Lab/mid
 |---|---|
 | **Ableton Live** | 11 or 12: Suite, or Standard with the Max for Live add-on |
 | **Max** | the Max bundled with Live: 8.6 (Live 11 to 12.1) or 9 (Live 12.2 and later) |
-| **OS** | macOS. The installer also runs on Linux; on Windows install the device and server by hand. |
+| **OS** | macOS, Windows or Linux (tested on macOS; the Windows and Linux installers are untested) |
 | **Server** | Python 3.10–3.14 (3.10–3.12 on Intel Macs) and [`midigpt`](https://pypi.org/project/midigpt/) 0.4.0; the installer sets these up |
 | **Hugging Face** | a free account that has accepted the [model license](https://huggingface.co/Metacreation/MIDI-GPT), and an access token: see [Hugging Face Access](#hugging-face-access) |
 | **Disk** | about 1 GB for the server environment, plus the model: 83 MB (`yellow_small`) or 350 MB (`yellow_medium`) |
-| **Hardware** | any recent Mac; no GPU needed |
+| **Hardware** | any recent computer; no GPU needed (an NVIDIA GPU is used when there is one) |
 
 ### One-Line Install
+
+macOS and Linux, in Terminal:
 
 ```bash
 curl -fsSL https://metacreation.net/midigpt-live/bootstrap.sh | bash
 ```
 
-This downloads the latest release and copies the **MIDI-GPT** folder into your Live User Library (the location is read from Live's preferences). It then asks whether to set up a server on this computer: a Python environment in `~/Library/Application Support/MIDI-GPT/server` with `midigpt`, a **Start MIDI-GPT Server** launcher, and the model. If no Hugging Face token is saved yet, it asks for one (see [Hugging Face Access](#hugging-face-access)). Skip the server if yours runs on another machine.
+Windows, in PowerShell:
+
+```powershell
+irm https://metacreation.net/midigpt-live/bootstrap.ps1 | iex
+```
+
+This downloads the latest release and copies the **MIDI-GPT** folder into your Live User Library (the location is read from Live's preferences). It then asks whether to set up a server on this computer: a Python environment with `midigpt` (in `~/Library/Application Support/MIDI-GPT/server`, `~/.config/MIDI-GPT/server` on Linux, `%APPDATA%\MIDI-GPT\server` on Windows), a **Start MIDI-GPT Server** launcher (Desktop and Start menu shortcuts on Windows), and the model. On Windows it also offers Microsoft's Visual C++ runtime, which PyTorch needs, and the CUDA build of PyTorch when there is an NVIDIA GPU. If no Hugging Face token is saved yet, it asks for one (see [Hugging Face Access](#hugging-face-access)). Skip the server if yours runs on another machine.
 
 Options go after `bash -s --`, for example `curl -fsSL …/bootstrap.sh | bash -s -- --no-server`:
 
@@ -82,6 +90,9 @@ Options go after `bash -s --`, for example `curl -fsSL …/bootstrap.sh | bash -
 | `--zip FILE` | install from a downloaded release zip |
 | `--yes` | accept every default (a Hugging Face token is then read from `HF_TOKEN`) |
 | `--uninstall` | remove everything (see below) |
+
+On Windows the options are PowerShell flags, passed through a script block, for example
+`& ([scriptblock]::Create((irm https://metacreation.net/midigpt-live/bootstrap.ps1))) -NoServer`: `-NoServer` / `-Server`, `-Model`, `-UserLibrary`, `-Zip`, `-Gpu` / `-Cpu` (the PyTorch build), `-Yes`, `-Uninstall`.
 
 ### Manual Install
 
@@ -151,6 +162,12 @@ Run the one-line install again to update: it replaces the devices and keeps your
 
 ```bash
 curl -fsSL https://metacreation.net/midigpt-live/bootstrap.sh | bash -s -- --uninstall
+```
+
+On Windows, in PowerShell:
+
+```powershell
+& ([scriptblock]::Create((irm https://metacreation.net/midigpt-live/bootstrap.ps1))) -Uninstall
 ```
 
 This removes the MIDI-GPT folder from the User Library, the server environment, the launchers and the settings. Downloaded models stay in `~/.cache/huggingface` (delete `models--Metacreation--MIDI-GPT` there to free the space), and so does the Hugging Face token (`hf auth logout` removes it).
@@ -255,6 +272,8 @@ When a request fails, the readout under the takes says what went wrong and what 
 | **NO LINK** in the readout, red light in **SETUP** | the server isn't running or the address is wrong: start it, or check the address. If it stopped at startup, its window says why |
 | The server window says the model is gated | accept the license at [huggingface.co/Metacreation/MIDI-GPT](https://huggingface.co/Metacreation/MIDI-GPT) and save a token: see [Hugging Face Access](#hugging-face-access) |
 | Generation is slow on a Mac | the GPU (MPS) can be slower than the CPU: start the server with `start-server.sh --device cpu` |
+| Windows: the server stops with a DLL error (`WinError 126`, `c10.dll`) | PyTorch needs Microsoft's Visual C++ runtime: install [vc_redist.x64.exe](https://aka.ms/vc14/vc_redist.x64.exe) |
+| Windows: "Windows protected your PC" when starting the server | click **More info › Run anyway**, or right-click the `.bat` › Properties › **Unblock** (the installer unblocks the files itself) |
 | Port 3456 already in use | another MIDI-GPT server (MIDI-GPT for REAPER uses the same port) is already running: use it, or start this one with `--port 3457` and change the address |
 | **TAG FAILED** | Live didn't load the tag device: drag **MIDI-GPT Instrument** from the MIDI-GPT folder onto the track |
 | **TIME SIG** | the scene's clips use different time signatures |
@@ -274,7 +293,8 @@ patchers/        MIDI-GPT.amxd and MIDI-GPT Instrument.amxd (built by the script
 javascript/      midigpt.js (Live API, state, HTTP client) and the panel, strip, tag and Node helper scripts
 media/panel/     the panel's images, rendered in Blender
 tools/           build, release, freezing, asset and dev scripts
-install.sh       the installer (bootstrap.sh downloads and runs it)
+install.sh       the installer for macOS and Linux (bootstrap.sh downloads and runs it)
+install.ps1      the installer for Windows (bootstrap.ps1 downloads and runs it)
 server/          the server launchers, shipped as MIDI-GPT/Server: start-server.sh, Start MIDI-GPT Server.command / .bat
 ```
 
@@ -287,7 +307,7 @@ python3 tools/build_release.py          # dist/MIDI-GPT-for-Live-<VERSION>.zip, 
 
 `build_release.py` freezes the devices itself (`tools/amxd_freeze.py`, the same format as Max's **Freeze Device**), so a release needs no Max. Attach the zip to a GitHub release tagged `v<VERSION>`; the installer downloads the newest one. Device conventions follow Ableton's [Max for Live production guidelines](https://github.com/Ableton/maxdevtools/blob/main/m4l-production-guidelines/m4l-production-guidelines.md).
 
-Issues and pull requests are welcome. Known gaps: a Windows installer, a MIDI-mappable Generate control, and testing on Linux.
+Issues and pull requests are welcome. Known gaps: a MIDI-mappable Generate control, and testing on Windows and Linux.
 
 ## Citing
 
