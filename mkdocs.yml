@@ -47,6 +47,7 @@ nav:
     - SETUP: guide/setup.md
   - Workflows: workflows.md
   - Troubleshooting: troubleshooting.md
+  - Reporting bugs: reporting-bugs.md
   - For developers: developers.md
   - About: about.md
 

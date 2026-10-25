@@ -1,0 +1,16 @@
+name: Feature request
+description: An idea for MIDI-GPT for Live, or something that would make it easier to use.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What you'd like the device to do, and what you're trying to make when you need it.
+    validations:
+      required: true
+  - type: textarea
+    id: now
+    attributes:
+      label: What you do now
+      description: How you work around it today, if you do.

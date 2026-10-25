@@ -1,0 +1,70 @@
+name: Bug report
+description: Something in MIDI-GPT for Live went wrong (a fault, a crash, wrong notes, a control that does nothing).
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. MIDI-GPT for Live is in beta, and reports like this are how it gets fixed.
+        The [reporting guide](https://metacreation-lab.github.io/midigpt-LIVE/reporting-bugs/) says where to find
+        each of the things below.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Step by step what you did, what happened, and what you expected instead.
+      placeholder: |
+        1. Painted bars 3 and 5 on the bass, turned on REMIX
+        2. Pressed GENERATE
+        3. The OUTPUT screen said SRV FAULT; expected the bars to be remixed
+    validations:
+      required: true
+  - type: input
+    id: fault
+    attributes:
+      label: What the device showed
+      description: The code and message on the OUTPUT screen, if any (e.g. CHECKS FAIL · ALL 3 ATTEMPTS FAILED).
+  - type: textarea
+    id: settings
+    attributes:
+      label: Settings
+      description: The model, CONTEXT, BARS/STEP, TRK/STEP, PROB, TAKES, and the TRACK / MASKS controls on the generated tracks. Screenshots are fine.
+  - type: textarea
+    id: server
+    attributes:
+      label: Server window
+      description: The lines around the error in the server window (from the failed request to the end). Leave empty if the server wasn't involved.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: MIDI-GPT for Live version
+      description: The first line of README.txt in the MIDI-GPT folder of your User Library.
+      placeholder: MIDI-GPT for Ableton Live 0.2.1
+    validations:
+      required: true
+  - type: input
+    id: live
+    attributes:
+      label: Ableton Live version
+      placeholder: Live 12.1.5 Suite, bundled Max
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: System
+      placeholder: macOS 15.1, Apple M2 / Windows 11 / Ubuntu 24.04
+    validations:
+      required: true
+  - type: input
+    id: midigpt
+    attributes:
+      label: Server
+      description: Where the server runs (this computer, another one) and its midigpt version (see the guide).
+      placeholder: this computer, midigpt 0.4.1
+  - type: markdown
+    attributes:
+      value: |
+        **Attachments:** the server's `failed_requests.jsonl` lets a failure be replayed exactly, but it contains
+        the MIDI of your clips: attach it (zipped, or renamed to .txt) only if you're happy to share that.

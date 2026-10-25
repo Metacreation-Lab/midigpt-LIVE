@@ -57,6 +57,8 @@ echo "  Keep this window open while you use MIDI-GPT in Live. Press Ctrl+C to st
 [ "$(uname -s)" = Darwin ] && echo "  On a Mac the GPU (MPS) can be slower than the CPU: if generations are slow, try start-server.sh --device cpu."
 echo
 
+# a failed generation's request is saved here, to attach to a bug report (docs/reporting-bugs.md)
+export MIDIGPT_FAILED_REQUESTS_LOG="${MIDIGPT_FAILED_REQUESTS_LOG:-$SERVER_DIR/failed_requests.jsonl}"
 "$VENV/bin/midigpt-http" --pretrained "$MODEL" --device auto --host 127.0.0.1 --port "$PORT" "$@"
 status=$?
 

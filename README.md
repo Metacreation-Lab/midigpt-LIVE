@@ -1,5 +1,6 @@
 [![MIDI-GPT for Live](docs/images/title.png)](https://metacreation.net/category/projects/)
 
+[![Status: beta](https://img.shields.io/badge/status-beta-orange)](#reporting-bugs)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Ableton Live 11 | 12](https://img.shields.io/badge/Ableton%20Live-11%20%7C%2012-000?logo=abletonlive&logoColor=fff)](https://www.ableton.com/live/)
 [![Max for Live](https://img.shields.io/badge/Max%20for%20Live-8.6%20%7C%209-555)](https://www.ableton.com/live/max-for-live/)
@@ -17,6 +18,9 @@
 - **Steer the output**: polyphony, note length, density, scale, register, rhythm and remix per track; temperature, top-p and top-k for the whole request.
 - **Takes**: generate up to 16 versions at once, step through them in place, go back to the original, or keep one.
 - **Runs on your computer**: the model runs in a local server; nothing leaves your machine unless you point the device at a server elsewhere.
+
+> [!WARNING]
+> **MIDI-GPT for Live is in beta.** It works, but it hasn't been used on many machines or sets yet, and some combinations of settings still go wrong. Please [report what you find](#reporting-bugs): small things too.
 
 **Trailer:** [watch on YouTube](https://youtu.be/t7Ze_Log_5Q) (1:39).
 
@@ -43,6 +47,7 @@ Companion project: [MIDI-GPT for REAPER](https://github.com/Metacreation-Lab/mid
 - [Controls](#controls)
 - [Tips & Common Gotchas](#tips--common-gotchas)
 - [Troubleshooting](#troubleshooting)
+- [Reporting Bugs](#reporting-bugs)
 - [Contribution](#contribution)
 - [Citing](#citing)
 - [Acknowledgments](#acknowledgments)
@@ -282,6 +287,12 @@ When a request fails, the readout under the takes says what went wrong and what 
 
 Settings: `~/Library/Application Support/MIDI-GPT/live.json`. Server: `~/Library/Application Support/MIDI-GPT/server` (its window shows the log). Models and the Hugging Face token: `~/.cache/huggingface`.
 
+## Reporting Bugs
+
+MIDI-GPT for Live is in beta, so reports are the most useful thing you can send. [Open a bug report](https://github.com/Metacreation-Lab/midigpt-LIVE/issues/new?template=bug_report.yml): the form asks for what you did, what the **OUTPUT** screen said, the settings involved, the lines around the error in the server window, and your versions. [Reporting bugs](https://metacreation-lab.github.io/midigpt-LIVE/reporting-bugs/) says where to find each of them.
+
+When a generation fails, the server saves the request it got to `failed_requests.jsonl` in its folder (`~/Library/Application Support/MIDI-GPT/server` on macOS, `~/.config/MIDI-GPT/server` on Linux, `%APPDATA%\MIDI-GPT\server` on Windows). Attaching it lets the failure be replayed exactly, but it contains the MIDI of your clips: only attach it if you're happy to share that.
+
 ---
 
 ## Contribution
@@ -307,7 +318,7 @@ python3 tools/build_release.py          # dist/MIDI-GPT-for-Live-<VERSION>.zip, 
 
 `build_release.py` freezes the devices itself (`tools/amxd_freeze.py`, the same format as Max's **Freeze Device**), so a release needs no Max. Attach the zip to a GitHub release tagged `v<VERSION>`; the installer downloads the newest one. Device conventions follow Ableton's [Max for Live production guidelines](https://github.com/Ableton/maxdevtools/blob/main/m4l-production-guidelines/m4l-production-guidelines.md).
 
-Issues and pull requests are welcome. Known gaps: a MIDI-mappable Generate control, and testing on Windows and Linux.
+Issues and pull requests are welcome ([reporting bugs](#reporting-bugs)). Known gaps: a MIDI-mappable Generate control, and testing on Windows and Linux.
 
 ## Citing
 

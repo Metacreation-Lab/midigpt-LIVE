@@ -38,7 +38,7 @@ NODE_SCRIPTS = {"midigpt_node.js"}      # run by Node, which has its own require
 INCLUDE = re.compile(r"""^[ \t]*include\(\s*["']([^"']+)["']\s*\)\s*;?[ \t]*$""", re.M)
 REQUIRE = re.compile(r"""\brequire\(\s*["']([^"']+)["']\s*\)""")
 
-README = """MIDI-GPT for Ableton Live {version}
+README = """MIDI-GPT for Ableton Live {version} (beta)
 
 Install
   Copy this MIDI-GPT folder into your Live User Library, for example
@@ -56,6 +56,10 @@ Use
 
 Needs Live 11 or 12 with Max for Live (Suite, or Standard + Max for Live).
 https://github.com/{repo}
+
+This is a beta: some combinations of settings still go wrong. Please report
+what you find: https://github.com/{repo}/issues (the guide on what to include:
+https://metacreation-lab.github.io/midigpt-LIVE/reporting-bugs/).
 """
 
 

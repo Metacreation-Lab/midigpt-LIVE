@@ -18,7 +18,7 @@
 | **CTX LIMIT** | the takes may be cut short: lower **CONTEXT** or generate fewer bars |
 | **TAKES LOST** | some takes failed the checks; the others are ready |
 | **TAG FAILED** | Live didn't load the tag device: drag **MIDI-GPT Instrument** from the MIDI-GPT folder onto the track |
-| **SRV FAULT** · **BAD REQUEST** | something broke on the server or in the device: retry, and if it repeats, [report it](https://github.com/Metacreation-Lab/midigpt-LIVE/issues) with `midigpt.log` |
+| **SRV FAULT** · **BAD REQUEST** | something broke on the server or in the device: retry, and if it repeats, [report it](reporting-bugs.md) with the server window's lines and its `failed_requests.jsonl` |
 
 ## Other problems
 
@@ -45,6 +45,7 @@
 | Settings | `~/Library/Application Support/MIDI-GPT/live.json` |
 | Server | `~/Library/Application Support/MIDI-GPT/server` (its window shows the log) |
 | Models and the Hugging Face token | `~/.cache/huggingface` |
+| Requests that failed on the server | `failed_requests.jsonl` in the server folder |
 
-Still stuck? [Open an issue](https://github.com/Metacreation-Lab/midigpt-LIVE/issues) with what you did and what the
+Still stuck? [Report it](reporting-bugs.md) with what you did and what the
 stats screen said.

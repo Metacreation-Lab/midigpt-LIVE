@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Troubleshooting
+    url: https://metacreation-lab.github.io/midigpt-LIVE/troubleshooting/
+    about: The fault codes on the OUTPUT screen and the common fixes.
+  - name: The MIDI-GPT model
+    url: https://github.com/Metacreation-Lab/MIDI-GPT
+    about: Questions about the model itself (training, checkpoints, the paper).

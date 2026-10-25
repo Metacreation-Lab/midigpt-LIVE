@@ -7,6 +7,10 @@ device that writes MIDI into your clips with [MIDI-GPT](https://github.com/Metac
 for computer-assisted multitrack composition. It reads every MIDI clip in the selected scene as context, generates
 the bars you choose, and writes the result back as takes you can audition, revert or keep.
 
+!!! warning "Beta"
+    MIDI-GPT for Live is in beta. It works, but it hasn't been used on many machines or sets yet, and some
+    combinations of settings still go wrong. Please [report what you find](reporting-bugs.md), small things too.
+
 [Install](install.md){ .md-button .md-button--primary } [Quick start](quickstart.md){ .md-button }
 
 <div class="features" markdown>

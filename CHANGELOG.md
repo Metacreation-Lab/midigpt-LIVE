@@ -6,6 +6,15 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Marked as beta in the README, the documentation and the release's README.txt.
+- [Reporting bugs](docs/reporting-bugs.md): what to include and where to find it, with GitHub forms for bug reports
+  and feature requests.
+
+### Changed
+- The server launchers keep the requests that failed on the server in `failed_requests.jsonl` in the server folder
+  (it went to whichever folder the server was started from), so it can be attached to a bug report.
+
 ### Fixed
 - Takes stay available when you click elsewhere in Live (another track, scene or clip): switching takes still
   writes into the clips they were generated for. They go on the next generation or **KEEP**.

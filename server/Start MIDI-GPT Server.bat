@@ -34,6 +34,8 @@ echo   MIDI-GPT server on http://127.0.0.1:%PORT% (model %MODEL%)
 echo   Keep this window open while you use MIDI-GPT in Live. Press Ctrl+C to stop the server.
 echo.
 
+REM a failed generation's request is saved here, to attach to a bug report (docs/reporting-bugs.md)
+if not defined MIDIGPT_FAILED_REQUESTS_LOG set "MIDIGPT_FAILED_REQUESTS_LOG=%SERVER_DIR%\failed_requests.jsonl"
 "%VENV%\Scripts\midigpt-http.exe" --pretrained %MODEL% --device auto --host 127.0.0.1 --port %PORT% %*
 
 if errorlevel 1 (
