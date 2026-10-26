@@ -6,6 +6,12 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.3]
+
+### Fixed
+- **REMIX** without **P+D** keeps each note's duration again, not only its onset: the server is midigpt 0.4.2. Run the
+  installer again to update the server.
+
 ## [0.2.2]
 
 ### Added

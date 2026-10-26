@@ -64,7 +64,7 @@ Companion project: [MIDI-GPT for REAPER](https://github.com/Metacreation-Lab/mid
 | **Ableton Live** | 11 or 12: Suite, or Standard with the Max for Live add-on |
 | **Max** | the Max bundled with Live: 8.6 (Live 11 to 12.1) or 9 (Live 12.2 and later) |
 | **OS** | macOS, Windows or Linux (tested on macOS; the Windows and Linux installers are untested) |
-| **Server** | Python 3.10–3.14 (3.10–3.12 on Intel Macs) and [`midigpt`](https://pypi.org/project/midigpt/) 0.4.1; the installer sets these up |
+| **Server** | Python 3.10–3.14 (3.10–3.12 on Intel Macs) and [`midigpt`](https://pypi.org/project/midigpt/) 0.4.2; the installer sets these up |
 | **Hugging Face** | a free account that has accepted the [model license](https://huggingface.co/Metacreation/MIDI-GPT), and an access token: see [Hugging Face Access](#hugging-face-access) |
 | **Disk** | about 1 GB for the server environment, plus the model: 83 MB (`yellow_small`) or 350 MB (`yellow_medium`) |
 | **Hardware** | any recent computer; no GPU needed (an NVIDIA GPU is used when there is one) |
@@ -125,7 +125,7 @@ On Windows the options are PowerShell flags, passed through a script block, for 
 3. **MIDI-GPT:**
 
    ```bash
-   pip install "midigpt[http,inference]==0.4.1"
+   pip install "midigpt[http,inference]==0.4.2"
    ```
 
    On an Intel Mac, add `"torch<2.3" "numpy<2"` (the last PyTorch built for Intel Macs).

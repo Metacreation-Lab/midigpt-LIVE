@@ -40,7 +40,7 @@ body:
     attributes:
       label: MIDI-GPT for Live version
       description: The first line of README.txt in the MIDI-GPT folder of your User Library.
-      placeholder: MIDI-GPT for Ableton Live 0.2.2
+      placeholder: MIDI-GPT for Ableton Live 0.2.3
     validations:
       required: true
   - type: input

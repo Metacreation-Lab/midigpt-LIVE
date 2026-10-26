@@ -79,7 +79,7 @@ On Windows the options are PowerShell flags, passed through a script block, for 
 3. **MIDI-GPT:**
 
     ```bash
-    pip install "midigpt[http,inference]==0.4.1"
+    pip install "midigpt[http,inference]==0.4.2"
     ```
 
     On an Intel Mac, add `"torch<2.3" "numpy<2"` (the last PyTorch built for Intel Macs).
