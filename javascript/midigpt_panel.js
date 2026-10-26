@@ -386,7 +386,7 @@ var KNOBS = {
     },
     "STRENGTH": ext(lin(msk, "strength", 0, 1, 0.05, function (v) { send("mask", "strength", v); }),
                     { fmt: function () { return Math.round(S.masks.strength * 100) + "%"; }, dim: function () { return !S.masks.rhythm || S.masks.exact; } }),
-    "AMOUNT": ext(lin(msk, "amount", 0, 1, 0.05, function (v) { send("mask", "amount", v); }),
+    "AMOUNT": ext(lin(msk, "amount", 0.05, 1, 0.05, function (v) { send("mask", "amount", v); }),   // 0 would change nothing
                   { fmt: function () { return Math.round(S.masks.amount * 100) + "%"; }, dim: function () { return !caps().remix || !S.masks.remix; } })
 };
 
@@ -1064,6 +1064,7 @@ function preflight() {
     var c = cur();
     if (c && isTarget(c)) {
         if (X.remix && X.rhythm) out.push([c.short + ": REMIX + RHYTHM", "TURN ONE OFF"]);
+        if (X.remix && !(+X.amount > 0)) out.push([c.short + ": REMIX AT 0%", "RAISE AMOUNT"]);   // 0 changes nothing
         if ((X.remix || (X.rhythm && X.exact)) && !E.tps_auto && E.tps > 1) out.push([c.short + ": " + (X.remix ? "REMIX" : "EXACT RHYTHM") + " NEEDS TRK/STEP 1", "SET TRK/STEP TO 1"]);
     }
     if (S.sample.topk && E.maskk && E.maskk >= S.sample.topk) out.push(["MASK K ≥ TOP-K", "LOWER MASK K"]);

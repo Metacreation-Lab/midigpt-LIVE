@@ -46,7 +46,7 @@ mgraphics gotchas met while building the panel: `image_surface_draw` paints thro
 
 Takes: before the first take is written, `snapshot_targets()` saves each target clip; `take -1` restores it and Keep commits the selected take. A batch (`last_generation`) lasts until the next generation or Keep, whatever is selected in Live: takes go into the clip ids captured with the request (`capture_write_ctx`), never into the selection. **Only use the Live 11 note API** (`get_notes_extended`, `remove_notes_extended`, `add_new_notes`): the old one makes Live block the device with a "uses an older process to modify MIDI notes" dialog. Only the generated bars are rewritten, and each bar's notes are sent sorted by onset.
 
-Model facts the UI depends on: density is drum-only on the current checkpoints (the server 422s otherwise); pitch range only applies with scale lock on; remix replaces the rhythm grid; top-p must be in (0, 1].
+Model facts the UI depends on: density is drum-only on the current checkpoints (the server 422s otherwise); pitch range only applies with scale lock on; remix replaces the rhythm grid, and its amount is the share of the reference notes resampled (at least one; 0 is refused, so the knob starts at 5% and `preflight()` in the panel catches a saved 0); POLY LIM / DENS LIM win over remix and exact rhythm; top-p must be in (0, 1]. `preflight()` checks everything the server would 422 on before a request is sent.
 
 The families differ, and the device reads what a model takes from `/info?model=<id>` (refetched when the model menu changes):
 

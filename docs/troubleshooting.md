@@ -20,6 +20,19 @@
 | **TAG FAILED** | Live didn't load the tag device: drag **MIDI-GPT Instrument** from the MIDI-GPT folder onto the track |
 | **SRV FAULT** · **BAD REQUEST** | something broke on the server or in the device: retry, and if it repeats, [report it](reporting-bugs.md) with the server window's lines and its `failed_requests.jsonl` |
 
+## Before generating
+
+**GENERATE** checks the settings first, and instead of sending a request the server would refuse, the **OUTPUT**
+screen says what to change:
+
+| Message | Change |
+|---|---|
+| **BARS/STEP > CONTEXT** | lower **BARS/STEP** |
+| **REMIX + RHYTHM** | turn one of them off on that track |
+| **REMIX AT 0%** | raise **AMOUNT**: at 0% remix would change nothing |
+| **REMIX** / **EXACT RHYTHM NEEDS TRK/STEP 1** | set **TRK/STEP** to 1 (or AUTO) |
+| **MASK K ≥ TOP-K** · **MASK P ≥ TOP-P** | lower **MASK K** / **MASK P**: they would skip every choice |
+
 ## Other problems
 
 | Symptom | Fix |
@@ -36,7 +49,8 @@
 
 - **DENSITY** only works on drum tracks; **POLY** and **LENGTH** only on melodic tracks.
 - **REGISTER** only applies with **SCALE** on.
-- **REMIX** replaces the rhythm settings on the same track.
+- **REMIX** replaces the rhythm settings on the same track. **POLY LIM** and **DENS LIM** win over it: a wider chord
+  or a fuller bar comes back with fewer notes.
 
 ## Files
 

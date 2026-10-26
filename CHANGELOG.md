@@ -12,6 +12,11 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
   and feature requests.
 
 ### Changed
+- **REMIX AMOUNT** is the share of the notes that change, from 5% to 100%: at least one note always changes. At 0%
+  remix changed nothing; a set saved at 0% asks for a higher **AMOUNT** before generating (**REMIX AT 0%**).
+- The documentation of **POLY LIM** (notes starting together), **MASK P** and **MASK K** (skip the model's likeliest
+  note choices) now says what they do, and that the limits win over **REMIX** and **EXACT** rhythm.
+- Troubleshooting lists the messages **GENERATE** shows before sending a request.
 - The server launchers keep the requests that failed on the server in `failed_requests.jsonl` in the server folder
   (it went to whichever folder the server was started from), so it can be attached to a bug report.
 

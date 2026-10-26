@@ -27,10 +27,11 @@ The screen shows the bar's steps for the scene's time signature.
 | Control | What it does |
 |---|---|
 | **REMIX** | vary the existing notes instead of writing new ones: keep the rhythm, change the notes |
-| **AMOUNT** | how much to change |
+| **AMOUNT** | the share of the notes that change, 5–100%: at least one note changes, all of them at 100% |
 | **P+D** | change pitch and duration (off: pitch only) |
 
-Remix replaces the rhythm settings on the same track.
+Remix replaces the rhythm settings on the same track. Under **POLY LIM** or **DENS LIM** (ENGINE) the limit wins: a
+chord wider than the limit, or a bar with more notes, comes back with fewer notes.
 
 <video src="../assets/video/masks.mp4" poster="../assets/video/masks.jpg" autoplay muted loop playsinline></video>
 
