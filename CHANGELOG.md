@@ -6,6 +6,8 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.2]
+
 ### Added
 - Marked as beta in the README, the documentation and the release's README.txt.
 - [Reporting bugs](docs/reporting-bugs.md): what to include and where to find it, with GitHub forms for bug reports
@@ -19,6 +21,8 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
 - Troubleshooting lists the messages **GENERATE** shows before sending a request.
 - The server launchers keep the requests that failed on the server in `failed_requests.jsonl` in the server folder
   (it went to whichever folder the server was started from), so it can be attached to a bug report.
+- The server is midigpt 0.4.1: long generations are several times faster, and remix, exact rhythm, the
+  polyphony and density limits, the masks and odd meters (5/8, 7/8, 9/8) are more reliable.
 
 ### Fixed
 - Takes stay available when you click elsewhere in Live (another track, scene or clip): switching takes still

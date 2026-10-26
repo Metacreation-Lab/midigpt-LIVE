@@ -44,7 +44,7 @@ $ProgressPreference = "SilentlyContinue"   # Invoke-WebRequest's progress bar sl
 if ($Help) { Get-Content $MyInvocation.MyCommand.Path | Select-Object -Skip 1 -First 20 | ForEach-Object { $_ -replace '^# ?', '' }; exit 0 }
 
 $Repo = if ($env:MIDIGPT_LIVE_REPO) { $env:MIDIGPT_LIVE_REPO } else { "Metacreation-Lab/midigpt-LIVE" }
-$MidigptVersion = if ($env:MIDIGPT_VERSION) { $env:MIDIGPT_VERSION } else { "0.4.0" }
+$MidigptVersion = if ($env:MIDIGPT_VERSION) { $env:MIDIGPT_VERSION } else { "0.4.1" }
 $Port = 3456
 $PythonMaxMinor = 14   # midigpt has wheels for Python 3.10-3.14
 $HfRepo = "Metacreation/MIDI-GPT"
