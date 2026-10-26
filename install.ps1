@@ -4,7 +4,7 @@
 #   2. the server (optional, asked): a Python environment with midigpt, Hugging Face access, the model, and
 #      Start MIDI-GPT Server shortcuts (to MIDI-GPT\Server\Start MIDI-GPT Server.bat)
 #
-#   irm https://metacreation.net/midigpt-live/bootstrap.ps1 | iex
+#   irm https://metacreation.net/midigpt-LIVE/bootstrap.ps1 | iex
 #   powershell -ExecutionPolicy Bypass -File install.ps1 [options]
 #
 # Options

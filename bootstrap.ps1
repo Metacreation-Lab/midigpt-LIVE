@@ -1,9 +1,9 @@
 # One-line install of MIDI-GPT for Ableton Live (Windows, PowerShell):
 #
-#   irm https://metacreation.net/midigpt-live/bootstrap.ps1 | iex
+#   irm https://metacreation.net/midigpt-LIVE/bootstrap.ps1 | iex
 #
 # Downloads install.ps1 and runs it. Options go through a script block, e.g.
-#   & ([scriptblock]::Create((irm https://metacreation.net/midigpt-live/bootstrap.ps1))) -NoServer
+#   & ([scriptblock]::Create((irm https://metacreation.net/midigpt-LIVE/bootstrap.ps1))) -NoServer
 #
 # Everything runs in a function that only returns: piped into iex this has no process of its own, so exit would
 # close the caller's PowerShell window.

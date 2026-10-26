@@ -74,13 +74,13 @@ Companion project: [MIDI-GPT for REAPER](https://github.com/Metacreation-Lab/mid
 macOS and Linux, in Terminal:
 
 ```bash
-curl -fsSL https://metacreation.net/midigpt-live/bootstrap.sh | bash
+curl -fsSL https://metacreation.net/midigpt-LIVE/bootstrap.sh | bash
 ```
 
 Windows, in PowerShell:
 
 ```powershell
-irm https://metacreation.net/midigpt-live/bootstrap.ps1 | iex
+irm https://metacreation.net/midigpt-LIVE/bootstrap.ps1 | iex
 ```
 
 This downloads the latest release and copies the **MIDI-GPT** folder into your Live User Library (the location is read from Live's preferences). It then asks whether to set up a server on this computer: a Python environment with `midigpt` (in `~/Library/Application Support/MIDI-GPT/server`, `~/.config/MIDI-GPT/server` on Linux, `%APPDATA%\MIDI-GPT\server` on Windows), a **Start MIDI-GPT Server** launcher (Desktop and Start menu shortcuts on Windows), and the model. On Windows it also offers Microsoft's Visual C++ runtime, which PyTorch needs, and the CUDA build of PyTorch when there is an NVIDIA GPU. If no Hugging Face token is saved yet, it asks for one (see [Hugging Face Access](#hugging-face-access)). Skip the server if yours runs on another machine.
@@ -97,7 +97,7 @@ Options go after `bash -s --`, for example `curl -fsSL …/bootstrap.sh | bash -
 | `--uninstall` | remove everything (see below) |
 
 On Windows the options are PowerShell flags, passed through a script block, for example
-`& ([scriptblock]::Create((irm https://metacreation.net/midigpt-live/bootstrap.ps1))) -NoServer`: `-NoServer` / `-Server`, `-Model`, `-UserLibrary`, `-Zip`, `-Gpu` / `-Cpu` (the PyTorch build), `-Yes`, `-Uninstall`.
+`& ([scriptblock]::Create((irm https://metacreation.net/midigpt-LIVE/bootstrap.ps1))) -NoServer`: `-NoServer` / `-Server`, `-Model`, `-UserLibrary`, `-Zip`, `-Gpu` / `-Cpu` (the PyTorch build), `-Yes`, `-Uninstall`.
 
 ### Manual Install
 
@@ -166,13 +166,13 @@ xattr -dr com.apple.quarantine ~/Music/Ableton/User\ Library/MIDI-GPT
 Run the one-line install again to update: it replaces the devices and keeps your settings and server. To remove everything:
 
 ```bash
-curl -fsSL https://metacreation.net/midigpt-live/bootstrap.sh | bash -s -- --uninstall
+curl -fsSL https://metacreation.net/midigpt-LIVE/bootstrap.sh | bash -s -- --uninstall
 ```
 
 On Windows, in PowerShell:
 
 ```powershell
-& ([scriptblock]::Create((irm https://metacreation.net/midigpt-live/bootstrap.ps1))) -Uninstall
+& ([scriptblock]::Create((irm https://metacreation.net/midigpt-LIVE/bootstrap.ps1))) -Uninstall
 ```
 
 This removes the MIDI-GPT folder from the User Library, the server environment, the launchers and the settings. Downloaded models stay in `~/.cache/huggingface` (delete `models--Metacreation--MIDI-GPT` there to free the space), and so does the Hugging Face token (`hf auth logout` removes it).

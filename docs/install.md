@@ -19,13 +19,13 @@ the model; the device never sees it. A model that is already downloaded keeps wo
 macOS and Linux, in Terminal:
 
 ```bash
-curl -fsSL https://metacreation.net/midigpt-live/bootstrap.sh | bash
+curl -fsSL https://metacreation.net/midigpt-LIVE/bootstrap.sh | bash
 ```
 
 Windows, in PowerShell:
 
 ```powershell
-irm https://metacreation.net/midigpt-live/bootstrap.ps1 | iex
+irm https://metacreation.net/midigpt-LIVE/bootstrap.ps1 | iex
 ```
 
 This downloads the latest release and copies the **MIDI-GPT** folder into your Live User Library (its location is
@@ -49,7 +49,7 @@ Options go after `bash -s --`, for example `… | bash -s -- --no-server`:
 | `--uninstall` | remove everything (see below) |
 
 On Windows the options are PowerShell flags, passed through a script block, for example
-`& ([scriptblock]::Create((irm https://metacreation.net/midigpt-live/bootstrap.ps1))) -NoServer`: `-NoServer` / `-Server`, `-Model`, `-UserLibrary`, `-Zip`, `-Gpu` / `-Cpu` (the PyTorch build), `-Yes`, `-Uninstall`.
+`& ([scriptblock]::Create((irm https://metacreation.net/midigpt-LIVE/bootstrap.ps1))) -NoServer`: `-NoServer` / `-Server`, `-Model`, `-UserLibrary`, `-Zip`, `-Gpu` / `-Cpu` (the PyTorch build), `-Yes`, `-Uninstall`.
 
 ## Manual install
 
@@ -119,13 +119,13 @@ Run the one-line install again to update: it replaces the devices and keeps your
 everything:
 
 ```bash
-curl -fsSL https://metacreation.net/midigpt-live/bootstrap.sh | bash -s -- --uninstall
+curl -fsSL https://metacreation.net/midigpt-LIVE/bootstrap.sh | bash -s -- --uninstall
 ```
 
 On Windows, in PowerShell:
 
 ```powershell
-& ([scriptblock]::Create((irm https://metacreation.net/midigpt-live/bootstrap.ps1))) -Uninstall
+& ([scriptblock]::Create((irm https://metacreation.net/midigpt-LIVE/bootstrap.ps1))) -Uninstall
 ```
 
 This removes the MIDI-GPT folder from the User Library, the server environment, the launchers and the settings.

@@ -45,7 +45,7 @@ done
 if [ ! -x "$VENV/bin/midigpt-http" ]; then
     echo "The MIDI-GPT server isn't installed (no environment in $VENV)."
     echo "Install it with:"
-    echo "  curl -fsSL https://metacreation.net/midigpt-live/bootstrap.sh | bash -s -- --server"
+    echo "  curl -fsSL https://metacreation.net/midigpt-LIVE/bootstrap.sh | bash -s -- --server"
     echo
     pause
     exit 1

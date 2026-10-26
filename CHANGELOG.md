@@ -44,7 +44,7 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
 - Server launchers for each system in the release's `Server` folder (`server/` in the repo): `start-server.sh`,
   **Start MIDI-GPT Server.command** (macOS) and **.bat** (Windows), and a Linux menu entry. The installer uses them
   instead of writing its own, and keeps the model and port in `server.conf`.
-- Windows installer: `irm https://metacreation.net/midigpt-live/bootstrap.ps1 | iex` (`install.ps1`) installs the
+- Windows installer: `irm https://metacreation.net/midigpt-LIVE/bootstrap.ps1 | iex` (`install.ps1`) installs the
   devices and the server like the macOS / Linux one, with the Visual C++ runtime PyTorch needs, the CUDA build of
   PyTorch when there is an NVIDIA GPU, and Desktop and Start menu shortcuts.
 
@@ -89,7 +89,7 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
 - Stats read the server's real fields (TOK/S and CTX were always empty); ATT shows the accepted attempt.
 - Long note and state messages to the panel are sent in parts (large scenes showed an empty roll).
 - The project now lives at Metacreation-Lab/midigpt-LIVE; the one-line install is
-  `curl -fsSL https://metacreation.net/midigpt-live/bootstrap.sh | bash`.
+  `curl -fsSL https://metacreation.net/midigpt-LIVE/bootstrap.sh | bash`.
 
 ### Fixed
 - AR generations always write their result into the target clips.

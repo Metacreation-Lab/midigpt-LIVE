@@ -23,7 +23,7 @@ if exist "%SERVER_DIR%\server.conf" (
 if not exist "%VENV%\Scripts\midigpt-http.exe" (
     echo The MIDI-GPT server isn't installed ^(no environment in %VENV%^).
     echo Install it from PowerShell with:
-    echo   ^& ^([scriptblock]::Create^(^(irm https://metacreation.net/midigpt-live/bootstrap.ps1^)^)^) -Server
+    echo   ^& ^([scriptblock]::Create^(^(irm https://metacreation.net/midigpt-LIVE/bootstrap.ps1^)^)^) -Server
     echo.
     pause
     exit /b 1

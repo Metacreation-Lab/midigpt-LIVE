@@ -4,7 +4,7 @@
 #   1. the device: downloads the release zip and copies the MIDI-GPT folder into Live's User Library
 #   2. the server (optional, asked): a Python environment with midigpt, a launcher, and the model
 #
-#   curl -fsSL https://metacreation.net/midigpt-live/bootstrap.sh | bash
+#   curl -fsSL https://metacreation.net/midigpt-LIVE/bootstrap.sh | bash
 #   ./install.sh [options]
 #
 # Options

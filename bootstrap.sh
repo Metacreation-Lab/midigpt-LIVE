@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One-line install of MIDI-GPT for Ableton Live (macOS, Linux):
 #
-#   curl -fsSL https://metacreation.net/midigpt-live/bootstrap.sh | bash
+#   curl -fsSL https://metacreation.net/midigpt-LIVE/bootstrap.sh | bash
 #
 # Downloads install.sh and runs it; arguments go to install.sh, e.g.
 #   curl -fsSL .../bootstrap.sh | bash -s -- --no-server
