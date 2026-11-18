@@ -33,7 +33,8 @@ read from Live's preferences). It then asks whether to set up a server on this c
 `midigpt` (in `~/Library/Application Support/MIDI-GPT/server`, `~/.config/MIDI-GPT/server` on Linux,
 `%APPDATA%\MIDI-GPT\server` on Windows), a **Start MIDI-GPT Server** launcher (Desktop and Start menu shortcuts on
 Windows), and the model. On Windows it also offers Microsoft's Visual C++ runtime, which PyTorch needs, and the CUDA
-build of PyTorch when there is an NVIDIA GPU.
+build of PyTorch when there is an NVIDIA GPU. The models the server loads are listed in `models.yaml` in the server
+folder: to add prism, expressive or your own, see [Models](models.md).
 If no Hugging Face token is saved yet, it asks for one (see [Hugging Face account](#hugging-face-account)). Skip the
 server if yours runs on another machine.
 
@@ -42,7 +43,7 @@ Options go after `bash -s --`, for example `… | bash -s -- --no-server`:
 | Flag | |
 |---|---|
 | `--no-server` / `--server` | install only the devices, or set up the server without asking |
-| `--model yellow_small` | the smaller, faster model (default `yellow_medium`) |
+| `--model yellow_small` | the model to start with (default `yellow_medium`); add more later in [models.yaml](models.md) |
 | `--user-library DIR` | install the devices into another User Library |
 | `--zip FILE` | install from a downloaded release zip |
 | `--yes` | accept every default (a Hugging Face token is then read from `HF_TOKEN`) |
@@ -92,11 +93,12 @@ On Windows the options are PowerShell flags, passed through a script block, for 
 
 5. **Start the server** from the `Server` folder inside `MIDI-GPT`: double-click **Start MIDI-GPT Server.command** (macOS)
     or **Start MIDI-GPT Server.bat** (Windows), or run `start-server.sh` (Linux). The first start downloads the model.
-    Leave the window open while you work; Ctrl+C stops the server. To use another model or port, put `MODEL=yellow_small`
-    or `PORT=3457` lines in a `server.conf` file in the server folder.
+    Leave the window open while you work; Ctrl+C stops the server. The models it loads are listed in `models.yaml`:
+    copy `Server/models.yaml` into the server folder and see [Models](models.md). To use another port, put a
+    `PORT=3457` line in a `server.conf` file in the server folder.
 
     !!! note "GPU or CPU"
-        The server uses the GPU when there is one (CUDA, or MPS on a Mac). **On a Mac, MPS can be slower than the CPU** for a model this size (twice as slow on an Intel Mac with a Radeon GPU): if generations are slow, start it with `start-server.sh --device cpu`.
+        The server uses the GPU when there is one (CUDA, or MPS on a Mac). **On a Mac, MPS can be slower than the CPU** for a model this size (twice as slow on an Intel Mac with a Radeon GPU): if generations are slow, set `device: cpu` in [models.yaml](models.md#gpu-or-cpu).
 
 ## The server on another computer
 
@@ -115,7 +117,7 @@ xattr -dr com.apple.quarantine ~/Music/Ableton/User\ Library/MIDI-GPT
 
 ## Update or uninstall
 
-Run the one-line install again to update: it replaces the devices and keeps your settings and server. To remove
+Run the one-line install again to update: it replaces the devices and keeps your settings, your server and your models.yaml. To remove
 everything:
 
 ```bash

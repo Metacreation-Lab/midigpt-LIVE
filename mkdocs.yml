@@ -37,6 +37,7 @@ nav:
   - Get started:
     - Install: install.md
     - Quick start: quickstart.md
+    - Models: models.md
   - The device:
     - Choosing what to write: guide/roll.md
     - TRACK: guide/track.md

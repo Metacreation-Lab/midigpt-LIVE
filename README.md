@@ -66,7 +66,7 @@ Companion project: [MIDI-GPT for REAPER](https://github.com/Metacreation-Lab/mid
 | **OS** | macOS, Windows or Linux (tested on macOS; the Windows and Linux installers are untested) |
 | **Server** | Python 3.10–3.14 (3.10–3.12 on Intel Macs) and [`midigpt`](https://pypi.org/project/midigpt/) 0.4.2; the installer sets these up |
 | **Hugging Face** | a free account that has accepted the [model license](https://huggingface.co/Metacreation/MIDI-GPT), and an access token: see [Hugging Face Access](#hugging-face-access) |
-| **Disk** | about 1 GB for the server environment, plus the model: 83 MB (`yellow_small`) or 350 MB (`yellow_medium`) |
+| **Disk** | about 1 GB for the server environment, plus each model: 83 MB (`yellow_small`) or about 350 MB (the others) |
 | **Hardware** | any recent computer; no GPU needed (an NVIDIA GPU is used when there is one) |
 
 ### One-Line Install
@@ -90,7 +90,7 @@ Options go after `bash -s --`, for example `curl -fsSL …/bootstrap.sh | bash -
 | Flag | |
 |---|---|
 | `--no-server` / `--server` | install only the devices, or set up the server without asking |
-| `--model yellow_small` | the smaller, faster model (default `yellow_medium`) |
+| `--model yellow_small` | the model to start with (default `yellow_medium`); add more later in [models.yaml](https://metacreation-lab.github.io/midigpt-LIVE/models/) |
 | `--user-library DIR` | install the devices into another User Library |
 | `--zip FILE` | install from a downloaded release zip |
 | `--yes` | accept every default (a Hugging Face token is then read from `HF_TOKEN`) |
@@ -138,10 +138,11 @@ On Windows the options are PowerShell flags, passed through a script block, for 
 
 5. **Start the server** from the `Server` folder inside `MIDI-GPT`: double-click **Start MIDI-GPT Server.command** (macOS)
    or **Start MIDI-GPT Server.bat** (Windows), or run `start-server.sh` (Linux). The first start downloads the model.
-   Leave the window open while you work; Ctrl+C stops the server. To use another model or port, put `MODEL=yellow_small`
-   or `PORT=3457` lines in a `server.conf` file in the server folder.
+   Leave the window open while you work; Ctrl+C stops the server. The models it loads are listed in `models.yaml`:
+   copy `Server/models.yaml` into the server folder and see [Models](https://metacreation-lab.github.io/midigpt-LIVE/models/). To use another port, put a
+   `PORT=3457` line in a `server.conf` file in the server folder.
 
-   The server uses the GPU when there is one (CUDA, or MPS on a Mac). **On a Mac, MPS can be slower than the CPU** for a model this size (twice as slow on an Intel Mac with a Radeon GPU): if generations are slow, start it with `start-server.sh --device cpu`.
+   The server uses the GPU when there is one (CUDA, or MPS on a Mac). **On a Mac, MPS can be slower than the CPU** for a model this size (twice as slow on an Intel Mac with a Radeon GPU): if generations are slow, set `device: cpu` in [models.yaml](https://metacreation-lab.github.io/midigpt-LIVE/models/#gpu-or-cpu).
 
 ### Hugging Face Access
 
@@ -161,9 +162,13 @@ macOS quarantines files downloaded with a browser. If Live won't load the device
 xattr -dr com.apple.quarantine ~/Music/Ableton/User\ Library/MIDI-GPT
 ```
 
+### Models
+
+The server loads the models listed in **models.yaml** in the server folder (`~/Library/Application Support/MIDI-GPT/server` on macOS, `~/.config/MIDI-GPT/server` on Linux, `%APPDATA%\MIDI-GPT\server` on Windows); each one appears under **Models** on the device's ENGINE page. The installer writes it with one model switched on and the others (`yellow_small`, `prism_medium`, `expressive_medium`) on lines starting with `#`: remove the `# ` to add one, save, and restart the server. A model from another Hugging Face repository (`hf_repo:`) or a `.safetensors` file on your computer (`ckpt:`) goes in the same list. The installer never replaces this file. Step by step: [Models](https://metacreation-lab.github.io/midigpt-LIVE/models/).
+
 ### Updating / Uninstalling
 
-Run the one-line install again to update: it replaces the devices and keeps your settings and server. To remove everything:
+Run the one-line install again to update: it replaces the devices and keeps your settings, your server and your models.yaml. To remove everything:
 
 ```bash
 curl -fsSL https://metacreation.net/midigpt-LIVE/bootstrap.sh | bash -s -- --uninstall
@@ -276,7 +281,7 @@ When a request fails, the readout under the takes says what went wrong and what 
 |---|---|
 | **NO LINK** in the readout, red light in **SETUP** | the server isn't running or the address is wrong: start it, or check the address. If it stopped at startup, its window says why |
 | The server window says the model is gated | accept the license at [huggingface.co/Metacreation/MIDI-GPT](https://huggingface.co/Metacreation/MIDI-GPT) and save a token: see [Hugging Face Access](#hugging-face-access) |
-| Generation is slow on a Mac | the GPU (MPS) can be slower than the CPU: start the server with `start-server.sh --device cpu` |
+| Generation is slow on a Mac | the GPU (MPS) can be slower than the CPU: set `device: cpu` in [models.yaml](https://metacreation-lab.github.io/midigpt-LIVE/models/#gpu-or-cpu) and restart the server |
 | Windows: the server stops with a DLL error (`WinError 126`, `c10.dll`) | PyTorch needs Microsoft's Visual C++ runtime: install [vc_redist.x64.exe](https://aka.ms/vc14/vc_redist.x64.exe) |
 | Windows: "Windows protected your PC" when starting the server | click **More info › Run anyway**, or right-click the `.bat` › Properties › **Unblock** (the installer unblocks the files itself) |
 | Port 3456 already in use | another MIDI-GPT server (MIDI-GPT for REAPER uses the same port) is already running: use it, or start this one with `--port 3457` and change the address |

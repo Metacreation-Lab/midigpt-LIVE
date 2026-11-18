@@ -288,10 +288,30 @@ if (-not $SetUp) {
         }
     }
 
-    # --- the launchers are in the release's Server folder; they read the model and port from server.conf, and the
-    # server folder from live.json
+    # --- the launchers are in the release's Server folder; they read the models from models.yaml, the port from
+    # server.conf, and the server folder from live.json
+    # models.yaml is the user's: written once from the release's template (with the chosen model on), never replaced
+    $ModelsYaml = Join-Path $ServerDir "models.yaml"
+    $Template = Join-Path $DeviceDir "Server\models.yaml"
+    if (Test-Path $ModelsYaml) {
+        Write-OK "keeping your models.yaml (the models the server loads): $ModelsYaml"
+    } elseif (Test-Path $Template) {
+        $lines = [System.IO.File]::ReadAllLines($Template)
+        $m = [regex]::Escape($Model)
+        if (-not ($lines -match "^  (# )?- \{id: $m,")) {
+            Write-Warn "$Model isn't one of the models in models.yaml: the server starts with yellow_medium; add $Model to models.yaml"
+            $Model = "yellow_medium"; $m = "yellow_medium"
+        }
+        $lines = $lines | ForEach-Object {
+            $_ -replace '^default_model: .*', "default_model: $Model" `
+               -replace '^  - \{id: yellow_medium,', '  # - {id: yellow_medium,' `
+               -replace "^  # - \{id: $m,", "  - {id: $Model,"
+        }
+        [System.IO.File]::WriteAllLines($ModelsYaml, [string[]]$lines)
+        Write-OK "models.yaml (the models the server loads; edit it to add more): $ModelsYaml"
+    }
     [System.IO.File]::WriteAllText((Join-Path $ServerDir "server.conf"),
-        "# written by install.ps1: the model and port the launchers use`r`nMODEL=$Model`r`nPORT=$Port`r`n")
+        "# written by install.ps1: the port the launchers use, and the model when there is no models.yaml`r`nMODEL=$Model`r`nPORT=$Port`r`n")
     Set-ConfigValue server_dir $ServerDir
     New-Item -ItemType Directory -Force -Path $StartMenu | Out-Null
     New-Shortcut -Path (Join-Path $StartMenu $ShortcutName) -Target $Launch

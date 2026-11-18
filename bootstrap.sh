@@ -11,5 +11,6 @@ BRANCH="${MIDIGPT_LIVE_BRANCH:-HEAD}"   # HEAD = the default branch
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 curl -fsSL "https://raw.githubusercontent.com/$REPO/$BRANCH/install.sh" -o "$tmp/install.sh" \
     || { echo "Could not download install.sh from $REPO ($BRANCH)." >&2; exit 1; }
-# the installer asks questions: read the answers from the terminal, not from the curl pipe
-if [ -r /dev/tty ]; then bash "$tmp/install.sh" "$@" < /dev/tty; else bash "$tmp/install.sh" "$@"; fi
+# the installer asks questions: read the answers from the terminal, not from the curl pipe. /dev/tty can exist
+# without a terminal behind it (CI, scripts): open it to check, not just test -r.
+if { : < /dev/tty; } 2>/dev/null; then bash "$tmp/install.sh" "$@" < /dev/tty; else bash "$tmp/install.sh" "$@"; fi

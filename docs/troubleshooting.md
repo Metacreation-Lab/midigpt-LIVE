@@ -42,8 +42,10 @@ screen says what to change:
 | Windows: "Windows protected your PC" when starting the server | click **More info › Run anyway**, or right-click the `.bat` › Properties › **Unblock** (the installer unblocks the files itself) |
 | Port 3456 already in use | another MIDI-GPT server is running (MIDI-GPT for REAPER uses the same port): use it, or start this one with `--port 3457` and change the address |
 | The device won't load after a download | clear the macOS quarantine flag (see [Install](install.md#macos-quarantine)) |
+| The server stops at start and mentions models.yaml or a model | a line in [models.yaml](models.md) is off: compare its indentation with the lines around it, and check the model's name, or the path of a local model |
+| A model is missing from **Models** on the ENGINE page | it is switched off in [models.yaml](models.md#add-a-model): remove the `# ` before it and restart the server |
 | The first generation is slow | the server loads the model on the first request; later ones are faster |
-| Generation is slow overall | on a Mac the GPU (MPS) can be slower than the CPU: start the server with `start-server.sh --device cpu`. Else try `yellow_small`, or run the server on a faster machine |
+| Generation is slow overall | on a Mac the GPU (MPS) can be slower than the CPU: set `device: cpu` in [models.yaml](models.md#gpu-or-cpu) and restart the server. Else try `yellow_small`, or run the server on a faster machine |
 
 ## Model limits
 

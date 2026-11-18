@@ -1,0 +1,28 @@
+# The models the MIDI-GPT server loads. Each one shows up in the device's ENGINE page, under Models.
+#
+# To add a model: remove the "# " at the start of its line, save this file, then restart the server
+# (close the server window and open Start MIDI-GPT Server again). To remove one, put the "# " back.
+# A model from Hugging Face downloads the first time the server starts with it.
+#
+# The installer writes this file once and never replaces it, so your changes survive updates.
+# Everything after a "#" is a note, not a setting.
+
+# The model the device uses until you pick another: one of the ids below.
+default_model: yellow_medium
+
+# Where the models run: auto (the GPU when there is one) or cpu.
+# On a Mac the GPU can be slower than the CPU for these models: if generations are slow, try cpu.
+device: auto
+
+models:
+  # MIDI-GPT models from huggingface.co/Metacreation/MIDI-GPT
+  - {id: yellow_medium, pretrained: yellow_medium}            # 350 MB, the default: best results
+  # - {id: yellow_small, pretrained: yellow_small}            # 83 MB, faster on older computers
+  # - {id: prism_medium, pretrained: prism_medium}            # 360 MB, adds key, pitch range, genre and per-bar controls
+  # - {id: expressive_medium, pretrained: expressive_medium}  # 360 MB, as prism, plus velocity and timing (EXPRESSIVENESS)
+
+  # A model from another Hugging Face repository: pretrained is the start of its .safetensors file name.
+  # - {id: my_model, pretrained: my_model, hf_repo: my-account/my-repo}
+
+  # A model file on this computer: the full path to its .safetensors file (~ doesn't work here).
+  # - {id: my_local_model, ckpt: /Users/me/Models/my_model-final.safetensors}

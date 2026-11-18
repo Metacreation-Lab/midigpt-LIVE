@@ -7,7 +7,8 @@ folder that is copied into Live's User Library as is.
   dist/MIDI-GPT/MIDI-GPT Instrument.amxd      the track tag; MIDI-GPT opens it by file
   dist/MIDI-GPT/README.txt
   dist/MIDI-GPT/Server/                         the server launchers (server/ in the repo): start-server.sh,
-                                                Start MIDI-GPT Server.command / .bat, the Linux menu entry
+                                                Start MIDI-GPT Server.command / .bat, the Linux menu entry,
+                                                models.yaml (the template the installer copies), check_models.py
   dist/MIDI-GPT-for-Live-<version>.zip         what install.sh downloads (a GitHub release asset)
 
 The scripts are frozen with their include()d and require()d files inlined:
@@ -51,6 +52,8 @@ Use
      "Start MIDI-GPT Server.command" (macOS) or "Start MIDI-GPT Server.bat"
      (Windows), or run start-server.sh (Linux). The installer sets the
      server up; see the link below to do it by hand.
+     The models the server loads are listed in models.yaml in the server
+     folder: https://metacreation-lab.github.io/midigpt-LIVE/models/
   2. Drag MIDI-GPT onto a track and open its window.
   3. The server address is in SETUP (default http://127.0.0.1:3456).
 

@@ -6,6 +6,25 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.4]
+
+### Added
+- **models.yaml**: the models the server loads, in one file in the server folder, edited with a text editor. The
+  installer writes it with the chosen model switched on and the other MIDI-GPT models (`yellow_small`, `prism_medium`,
+  `expressive_medium`) one `# ` away; a model from another Hugging Face repository or a local `.safetensors` file goes
+  in the same list. Every model it loads shows up under **Models** on the ENGINE page. The installer never replaces
+  it. See [Models](docs/models.md).
+
+### Changed
+- The server launchers start the models in models.yaml (and say which); without the file they start `MODEL` from
+  `server.conf` as before, and `--pretrained NAME` still serves just that model. Where the models run (GPU or CPU) is
+  `device:` in models.yaml.
+
+### Fixed
+- `start-server.sh --ckpt FILE` works: the launchers no longer add `--pretrained` next to it.
+- The one-line installer runs without a terminal (scripts, CI): it no longer fails with `/dev/tty: Device not
+  configured`.
+
 ## [0.2.3]
 
 ### Fixed

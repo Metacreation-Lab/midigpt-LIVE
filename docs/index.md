@@ -37,7 +37,7 @@ the bars you choose, and writes the result back as takes you can audition, rever
 | **Max** | the Max bundled with Live: 8.6 (Live 11 to 12.1) or 9 (Live 12.2 and later) |
 | **System** | macOS, Windows or Linux (the Windows and Linux installers are untested) |
 | **Server** | Python 3.10–3.14 (3.10–3.12 on Intel Macs) and `midigpt` 0.4.2, which the installer sets up |
-| **Disk** | about 1 GB for the server, plus the model: 83 MB (`yellow_small`) or 350 MB (`yellow_medium`) |
+| **Disk** | about 1 GB for the server, plus each model: 83 MB (`yellow_small`) or about 350 MB (the others) |
 
 ## Watch the full trailer
 
