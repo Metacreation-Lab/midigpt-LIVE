@@ -20,8 +20,26 @@ var KEY = [10, 10, 76, 118];   // tools/tag_device_assets.py STRIP
 var MARK = [[[26.41, 10.56], [84.51, 68.66], [26.41, 126.76], [36.97, 137.32], [105.63, 68.66], [36.97, 0], [26.41, 10.56]],
             [[31.69, 36.97], [0, 68.66], [31.69, 100.35], [42.25, 89.79], [21.13, 68.66], [42.25, 47.53], [31.69, 36.97]]];
 var down = 0;
-var bg = null;
-try { bg = new Image("midigpt_strip_bg.png"); if (!bg.size[0]) bg = null; } catch (e) { bg = null; }
+// jsui's Image does not read files frozen into a device, and by name it only searches Max's search path, which a
+// released device's folder (in Live's User Library) is not on. A miss by name is not an error: it returns a 32x32
+// placeholder (no sprite is that size). So: the copies shipped loose next to the .amxd (build_release.py) by
+// absolute path first, then the name (the dev checkout, through the search path). patcher.filepath is empty until
+// the device has loaded, so a miss only counts once that folder is known (null = not found, undefined = retry).
+var PATCHER = this.patcher;
+function deviceDir() {
+    var p = PATCHER, fp = "";
+    try { while (p.parentpatcher) p = p.parentpatcher; fp = p.filepath || ""; } catch (e) {}
+    return fp ? fp.substring(0, fp.lastIndexOf("/")) : "";
+}
+function tryImage(file) {
+    try { var im = new Image(file), w = im.size[0], h = im.size[1]; return w && !(w === 32 && h === 32) ? im : null; } catch (e) { return null; }
+}
+function loadImage(file) {
+    var dir = deviceDir(), im = dir ? tryImage(dir + "/" + file) : null;
+    return im || tryImage(file) || (dir ? null : undefined);
+}
+var bgImg;   // undefined until found or known missing: read it with bg()
+function bg() { if (bgImg === undefined) bgImg = loadImage("midigpt_strip_bg.png"); return bgImg || null; }
 
 var off = new Task(function () { down = 0; mgraphics.redraw(); }, this);
 function flash() { down = 1; mgraphics.redraw(); off.schedule(300); }
@@ -44,7 +62,8 @@ function markPath(cx, cy, h) {
 
 function paint() {
     var mg = mgraphics, dy = down ? 0.8 : 0;
-    if (bg) { mg.save(); mg.scale(0.5, 0.5); mg.set_source_rgba(1, 1, 1, 1); mg.image_surface_draw(bg); mg.restore(); }
+    var im = bg();
+    if (im) { mg.save(); mg.scale(0.5, 0.5); mg.set_source_rgba(1, 1, 1, 1); mg.image_surface_draw(im); mg.restore(); }
     else { mg.set_source_rgba(0.086, 0.086, 0.086, 1); mg.rectangle(0, 0, 96, 169); mg.fill(); }
     var cx = KEY[0] + KEY[2] / 2, cy = KEY[1] + KEY[3] / 2 + dy, h = 46;
     if (down) {   // lit: the mark glows in the LED colour (a few wider, fainter passes; mgraphics has no blur)

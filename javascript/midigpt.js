@@ -834,11 +834,31 @@ function resolve_paths(patcher){
     _logfile = root_path("midigpt.log");
 }
 
+// The Node helper. A released device ships midigpt_node.js loose next to the .amxd (Node needs a real file, and Max
+// extracting one from a frozen device is unreliable), but that folder is not on Max's search path in Live (only
+// while the device is open in the Max editor), so "node.script midigpt_node.js" finds nothing there. The release
+// build leaves the node.script box out and this creates it with the file's absolute path. A checkout's device
+// (patchers/, no midigpt_node.js beside it) keeps the box in its patch, which finds javascript/ by name.
+var NODE_VARNAME = "midigpt_node";
+function ensure_node(patcher, self_box){
+    var path = DEVICE_DIR ? DEVICE_DIR + "/midigpt_node.js" : "";
+    var have = patcher.getnamed(NODE_VARNAME);
+    if (!have) patcher.apply(function (b) { if (b.maxclass === "node.script") { have = b; return false; } return true; });
+    if (have) return;   // the patch's own box (a checkout), or one made by an earlier init() of this patcher
+    if (!path || !file_exists(path)) path = "midigpt_node.js";   // say "No such file" in the Max console, plainly
+    var b = patcher.newdefault(482, 487, "node.script", path, "@autostart", 1);
+    b.varname = NODE_VARNAME;
+    patcher.connect(self_box, OUT_NODE, b, 0);
+    patcher.connect(b, 0, self_box, 0);
+    flog("ensure_node: node.script " + path);
+}
+
 function init(){
     if (initialized) return;
     initialized = true;
     resolve_paths(this.patcher);
     flog("init: ROOT=" + ROOT + " dev=" + DEV_MODE);
+    try { ensure_node(this.patcher, this.box); } catch (e) { post("midigpt: could not start the Node helper: " + e + "\n"); }
     schedule_panel();
     outlet(OUT_NODE, "hello");   // the helper answers with config_ready (it may have started before this script)
     init_live_api();

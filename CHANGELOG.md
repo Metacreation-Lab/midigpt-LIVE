@@ -18,11 +18,16 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
   carry over, since only the on-screen name changed.
 
 ### Fixed
-- The device could fail to connect with `node.script: couldn't generate path` in the Max Console, seen on some
-  Max 9 / macOS combinations (reported on macOS 26.3 / Apple M1 and Apple M4 Max): `midigpt_node.js` now ships as a
-  loose file next to the two devices instead of frozen into `MIDI-GPT.amxd`, since Max extracting an embedded
-  node.script from a frozen device at load time is unreliable. Existing installs get the fix the next time they run
-  the installer or re-download the release zip.
+- The device could fail to connect to the server, with `node.script: couldn't generate path` or
+  `midigpt_node.js: No such file or directory` in the Max Console (reported on Max 9.1.5 / macOS 26.3, reproduced on
+  Live 11 with Max 8.5.8): Max extracting the Node helper from inside the frozen device is unreliable. It now ships
+  as a loose file next to the two devices, and the device starts it by its full path.
+- Knobs, keys, toggles, the strip key and the Instrument tag's face were missing in a fresh install (only the page
+  backgrounds and text drew): Max does not hand those images out of a frozen device. They now ship loose next to
+  the devices as well, and are loaded from there.
+- A `patcher: doesn't understand "scrollto"` line in the Max Console whenever the window opened.
+
+  Existing installs get these fixes the next time they run the installer or re-download the release zip.
 
 ## [0.2.4]
 

@@ -9,6 +9,9 @@ folder that is copied into Live's User Library as is.
                                                 needs a real file on disk, and Max extracting one from inside a
                                                 frozen device at load time is unreliable ("node.script: couldn't
                                                 generate path" on some Max 9 / macOS combinations)
+  dist/MIDI-GPT/midigpt_*.png                   the panel images, loose as well as frozen in: jsui's new Image()
+                                                (knobs, keys, toggles, strip key, tag face) does not read a frozen
+                                                device's container; fpic (the page backgrounds) does
   dist/MIDI-GPT/README.txt
   dist/MIDI-GPT/Server/                         the server launchers (server/ in the repo): start-server.sh,
                                                 Start MIDI-GPT Server.command / .bat, the Linux menu entry,
@@ -99,10 +102,12 @@ def inline(name, seen=()):
 
 def strip_bridge(src, dst):
     """A copy of the device without the dev bridge (tools/bridge.py): it binds a UDP port in every instance and is
-    inert without .midigpt_dev, which a release never has."""
+    inert without .midigpt_dev, which a release never has. Also without the node.script box (see below)."""
     doc = M.load(src)
     p = doc.patcher
     gone = {b["box"]["id"] for b in p["boxes"] if b["box"]["id"].startswith("obj-bridge-")}
+    # and without the node.script box: midigpt.js creates it with midigpt_node.js's absolute path (ensure_node())
+    gone |= {b["box"]["id"] for b in p["boxes"] if b["box"].get("text", "").startswith("node.script")}
     p["boxes"] = [b for b in p["boxes"] if b["box"]["id"] not in gone]
     p["lines"] = [l for l in p["lines"] if l["patchline"]["source"][0] not in gone and l["patchline"]["destination"][0] not in gone]
     M.save(doc, dst)
@@ -139,6 +144,11 @@ def main():
 
     for name in sorted(NODE_SCRIPTS):   # loose, not frozen in -- see the module docstring
         shutil.copy(script_path(name), os.path.join(out, name))
+    # every image, loose as well as frozen in: jsui's new Image() (panel sprites, strip key, tag face) does not read
+    # a frozen device's container, only fpic does (the page backgrounds); see the module docstring
+    for name in sorted(os.listdir(MEDIA)):
+        if name.startswith("midigpt_") and name.endswith(".png"):
+            shutil.copy(os.path.join(MEDIA, name), os.path.join(out, name))
 
     with open(os.path.join(out, "README.txt"), "w") as f:
         f.write(README.format(version=version, repo=repo))

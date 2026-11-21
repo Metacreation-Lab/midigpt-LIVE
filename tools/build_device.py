@@ -159,7 +159,7 @@ def build_window(old):
     boxes += [newobj("obj-p-lb", "loadbang", (700, 40), 1, 1, w=60),
               newobj("obj-p-defer", "deferlow", (700, 70), 1, 1, w=60),
               msg("obj-p-winmsg", "title MIDI-GPT, window size 200 80 1160 720, window flags nogrow, window flags nozoom, window exec, "
-                                  "presentation 1, scrollto 0 0", (800, 100), 420),
+                                  "presentation 1", (800, 100), 420),
               newobj("obj-p-thispatcher2", "thispatcher", (800, 140), 1, 2, w=80)]
     lines += [line("obj-p-lb", 0, "obj-p-defer", 0),
               line("obj-p-defer", 0, "obj-p-winmsg", 0), line("obj-p-winmsg", 0, "obj-p-thispatcher2", 0)]
