@@ -186,7 +186,8 @@ function push_panel(){
                           attrs: server_info && server_info.attributes ? Object.keys(server_info.attributes) : [] } },
         gen: panel_gen_state(),
         err: panel_fault_state,
-        tagging: tag_queue.length
+        tagging: tag_queue.length,
+        prefs: { font: ui_prefs.font_scale, hints: ui_prefs.hints }
     };
     var json = JSON.stringify(st);
     if (json !== panel_last.state) { panel_last.state = json; panel_send("panel_state", json); }
@@ -357,6 +358,10 @@ function panel_message(a){
         case "clear_fault": panel_fault_state = null; break;
         case "connect": http_health(); http_info(); http_models(); break;
         case "reset": reset_all_settings(); break;
+        case "prefs":   // SETTINGS popup: font size, hints -- display preferences, not generation params
+            if (a[2] === "font") set_ui_pref("font_scale", Math.max(0.8, Math.min(1.6, +a[3] || 1)));
+            else if (a[2] === "hints") set_ui_pref("hints", +a[3] ? 1 : 0);
+            break;
         case "select_track":
             t = +a[2];
             if (track_ids[t] !== undefined) { var view = new LiveAPI("live_set view"); view.set("selected_track", "id " + track_ids[t]); }

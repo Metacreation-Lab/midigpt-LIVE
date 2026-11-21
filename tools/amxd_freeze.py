@@ -92,14 +92,20 @@ JS_REFS = re.compile(r"""^(?![ \t]*//).*?(?:\b(?:include|require)\s*\(\s*["']([^
 
 
 def box_refs(patcher):
-    """File names a patcher refers to: js/jsui/node.script scripts, fpic images, abstractions."""
+    """File names a patcher refers to: js/jsui scripts, fpic images, abstractions.
+
+    node.script is deliberately not collected here: it runs in a separate Node
+    process that needs a real file on disk, and Max extracting one from inside a
+    frozen device's container at load time is where "node.script: couldn't
+    generate path" comes from (seen on some Max 9 / macOS combinations). Ship it
+    loose next to the frozen device instead (build_release.py's NODE_SCRIPTS)."""
     out = []
     for _, bb in M.boxes(patcher):
         cls, text = bb.get("maxclass"), bb.get("text", "")
         words = text.split()
         if cls == "jsui" and bb.get("filename"):
             out.append(bb["filename"])
-        elif cls == "newobj" and words and words[0] in ("js", "node.script") and len(words) > 1:
+        elif cls == "newobj" and words and words[0] == "js" and len(words) > 1:
             out.append(words[1])
         elif cls == "fpic" and bb.get("pic"):
             out.append(bb["pic"])

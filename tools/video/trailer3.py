@@ -136,7 +136,7 @@ SHOTS = {
         (20, 24, "main", ("seq", "takes3", 8 * T), KEEP_VIEW, glows(("TAKE3", 0.0, 0.35), ("KEEP", 0.7, 0.98)),
          [(0.05, 0.62, "Switch any time", "Take 3"), (0.62, 1.0, "Keep", "Writes the take into your clip")]),
         (24, 28, "main", ("seq", "masks3", 0.0), MASKS_SWEEP, glows(("RHYTHM", 0.05, 0.3), ("REMIX", 0.55, 0.8)),
-         [(0.0, 0.52, "Rhythm masks", "Hold a groove: a grid, or an exact pattern"), (0.52, 1.0, "Remix", "Keep the rhythm, change the notes")]),
+         [(0.0, 0.52, "Rhythm masks", "Hold a groove: a grid, or an exact pattern"), (0.52, 1.0, "Re-pitch", "Keep the rhythm, change the notes")]),
         (28, 32, "main", ("seq", "stats3", 0.0), STATS_VIEW, none, [(0.05, 1.0, "Generation stats", "Speed, time, notes, seed and attempts for every batch")]),
         (32, 34, "main", ("seq", "peakA", 0.0), PEAK_ROLL, none, [(0.0, 1.0, "Rewrite part of a track", "Select the bars: here, bars 5 to 8 of the bass")]),
         (34, 36, "main", ("seq", "peakA", 2 * T), MASK_SCALE, glows(("SCALE", 0.05, 0.4), ("ROOT", 0.25, 0.55), ("MODE", 0.45, 0.8)),

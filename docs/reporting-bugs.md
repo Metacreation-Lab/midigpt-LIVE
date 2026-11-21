@@ -14,13 +14,13 @@ You need a free GitHub account. Search the open issues first: if yours is there,
 The form asks for these. The more of them you can give, the faster a bug can be reproduced.
 
 1. **What you did and what happened**, step by step, and what you expected instead. "I painted bars 3 and 5 on the
-   bass, turned on REMIX, pressed GENERATE, and the readout said SRV FAULT" is far more useful than "remix is
+   bass, turned on RE-PITCH, pressed GENERATE, and the readout said SRV FAULT" is far more useful than "re-pitch is
    broken".
 2. **What the device showed**: the code and message on the **OUTPUT** screen (for example **CHECKS FAIL**,
    **SRV FAULT**, **CTX LIMIT**), and the stats screen if it says something unusual. A screenshot of the window is
    ideal.
 3. **The settings involved**: the model, CONTEXT, BARS/STEP, TRK/STEP, PROB, TAKES, and the TRACK and MASKS
-   controls on the tracks you generated (REMIX, SCALE, RHYTHM, AR...). A screenshot of each bay works too.
+   controls on the tracks you generated (RE-PITCH, SCALE, RHYTHM, AR...). A screenshot of each bay works too.
 4. **The server window**: copy the lines around the error, from the request that failed to the end. Messages
    starting with `Traceback` or `ERROR` are the important ones.
 5. **Versions**:

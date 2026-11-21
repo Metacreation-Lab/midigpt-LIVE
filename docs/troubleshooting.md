@@ -28,9 +28,9 @@ screen says what to change:
 | Message | Change |
 |---|---|
 | **BARS/STEP > CONTEXT** | lower **BARS/STEP** |
-| **REMIX + RHYTHM** | turn one of them off on that track |
-| **REMIX AT 0%** | raise **AMOUNT**: at 0% remix would change nothing |
-| **REMIX** / **EXACT RHYTHM NEEDS TRK/STEP 1** | set **TRK/STEP** to 1 (or AUTO) |
+| **RE-PITCH + RHYTHM** | turn one of them off on that track |
+| **RE-PITCH AT 0%** | raise **AMOUNT**: at 0% re-pitch would change nothing |
+| **RE-PITCH** / **EXACT RHYTHM NEEDS TRK/STEP 1** | set **TRK/STEP** to 1 (or AUTO) |
 | **MASK K ≥ TOP-K** · **MASK P ≥ TOP-P** | lower **MASK K** / **MASK P**: they would skip every choice |
 
 ## Other problems
@@ -51,7 +51,7 @@ screen says what to change:
 
 - **DENSITY** only works on drum tracks; **POLY** and **LENGTH** only on melodic tracks.
 - **REGISTER** only applies with **SCALE** on.
-- **REMIX** replaces the rhythm settings on the same track. **POLY LIM** and **DENS LIM** win over it: a wider chord
+- **RE-PITCH** replaces the rhythm settings on the same track. **POLY LIM** and **DENS LIM** win over it: a wider chord
   or a fuller bar comes back with fewer notes.
 
 ## Files

@@ -6,6 +6,24 @@ All notable changes to MIDI-GPT for Live are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.5]
+
+### Added
+- **SETTINGS**: click the MIDI-GPT mark, top-left, for a larger font size (three steps) and hover hints on a few
+  controls (RE-PITCH, RHYTHM, CONTEXT, POLY LIM, DENS LIM, PROB so far: more as they're written). Both are saved
+  per-user, the same way as the remembered server URL.
+
+### Changed
+- **REMIX** is now **RE-PITCH** everywhere in the device and the docs. Nothing to update: the setting and its value
+  carry over, since only the on-screen name changed.
+
+### Fixed
+- The device could fail to connect with `node.script: couldn't generate path` in the Max Console, seen on some
+  Max 9 / macOS combinations (reported on macOS 26.3 / Apple M1 and Apple M4 Max): `midigpt_node.js` now ships as a
+  loose file next to the two devices instead of frozen into `MIDI-GPT.amxd`, since Max extracting an embedded
+  node.script from a frozen device at load time is unreliable. Existing installs get the fix the next time they run
+  the installer or re-download the release zip.
+
 ## [0.2.4]
 
 ### Added

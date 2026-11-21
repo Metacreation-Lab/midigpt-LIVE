@@ -134,6 +134,15 @@ function save_persisted_server_url(){
     outlet(OUT_NODE, "config_set", "server_url", SERVER_URL);
 }
 
+// ui_prefs (font_scale, hints): set from the panel (SETTINGS popup) and persisted the same way as
+// server_url, but never pushed back into global_params -- they are not generation parameters.
+function set_ui_pref(key, value){
+    if (ui_prefs[key] === value) return;
+    ui_prefs[key] = value;
+    outlet(OUT_NODE, "config_set", key, value);
+    if (initialized) schedule_panel();
+}
+
 // "config <key> <value>" / "config_ready" from the node.script helper
 function handle_config(a){
     if (a[0] == "config_ready") return;
@@ -143,6 +152,14 @@ function handle_config(a){
         global_params.server_url = SERVER_URL;
         flog("config: server_url " + SERVER_URL);
         if (initialized) { schedule_panel(); http_info(); http_models(); }
+    }
+    else if (a[1] == "font_scale" && a[2] != null) {
+        var fs_ = parseFloat(a[2]);
+        if (fs_ && fs_ !== ui_prefs.font_scale) { ui_prefs.font_scale = fs_; if (initialized) schedule_panel(); }
+    }
+    else if (a[1] == "hints" && a[2] != null) {
+        var hv = +a[2] ? 1 : 0;
+        if (hv !== ui_prefs.hints) { ui_prefs.hints = hv; if (initialized) schedule_panel(); }
     }
 }
 
@@ -513,6 +530,11 @@ var global_params = {
 // Snapshot of the real defaults above, for reset_all_settings() -- taken
 // once at load, before global_params gets mutated by anything else.
 var DEFAULT_GLOBAL_PARAMS = JSON.parse(JSON.stringify(global_params));
+
+// Panel display preferences: not generation parameters, so not part of global_params (which lives in
+// a per-Live-set Dict and is included in reset_all_settings()). Persisted globally instead, the same
+// way as server_url's remembered default (see handle_config()/set_ui_pref()).
+var ui_prefs = { font_scale: 1, hints: 0 };
 
 if ( JSON.stringify(max_global_params) == "{}") {
     debug && post("max global params empty at init — setting default params ", "\n");

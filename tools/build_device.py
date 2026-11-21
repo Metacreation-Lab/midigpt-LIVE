@@ -38,8 +38,10 @@ LEGACY_TOP = ("obj-32", "obj-25", "obj-27", "obj-20", "obj-23", "obj-7", "obj-17
 WINDOW_INLETS = ("obj-2", "obj-4")   # 0: pcontrol (open), 1: panel state
 URL_RECT = [54, 298, 284, 16]
 SEED_RECT = [602, 403, 72, 11]      # the seed readout on the main page (midigpt_panel.js seedRect: 598, 395, 76 x 20)
-REGIONS = [("top", [788, 2, 168, 34]), ("roll", [4, 36, 952, 220]), ("main", [4, 256, 684, 264]),   # midigpt_panel.js REGIONS
+REGIONS = [("top", [4, 2, 952, 34]), ("roll", [4, 36, 952, 220]), ("main", [4, 256, 684, 264]),   # midigpt_panel.js REGIONS
            ("output", [688, 256, 268, 264]), ("masks", [4, 520, 952, 118])]   # the Setup page's server screen (32, 292, 320, 28), inside its readout
+# "top" spans the whole header strip (not just the ENGINE/SETUP keys) so it can also catch clicks on the
+# MIDI-GPT wordmark baked into the page backgrounds, top-left, which opens the SETTINGS popup.
 
 
 def newobj(box_id, text, xy, nin, nout, w=120):

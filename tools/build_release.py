@@ -5,6 +5,10 @@ folder that is copied into Live's User Library as is.
 
   dist/MIDI-GPT/MIDI-GPT.amxd
   dist/MIDI-GPT/MIDI-GPT Instrument.amxd      the track tag; MIDI-GPT opens it by file
+  dist/MIDI-GPT/midigpt_node.js                 NODE_SCRIPTS, loose next to the devices (not frozen in): Node
+                                                needs a real file on disk, and Max extracting one from inside a
+                                                frozen device at load time is unreliable ("node.script: couldn't
+                                                generate path" on some Max 9 / macOS combinations)
   dist/MIDI-GPT/README.txt
   dist/MIDI-GPT/Server/                         the server launchers (server/ in the repo): start-server.sh,
                                                 Start MIDI-GPT Server.command / .bat, the Linux menu entry,
@@ -132,6 +136,9 @@ def main():
         F.freeze(src, os.path.join(out, dev), [], files=files)
         size = os.path.getsize(os.path.join(out, dev))
         print("froze %-26s %3d files  %6.1f KB" % (dev, len(files), size / 1024))
+
+    for name in sorted(NODE_SCRIPTS):   # loose, not frozen in -- see the module docstring
+        shutil.copy(script_path(name), os.path.join(out, name))
 
     with open(os.path.join(out, "README.txt"), "w") as f:
         f.write(README.format(version=version, repo=repo))

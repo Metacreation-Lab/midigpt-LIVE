@@ -18,7 +18,7 @@ The **ENGINE** key at the top right opens the model and how it generates. These 
 | **VELOCITY** · **MICRO** | on / off | generate velocities and microtiming, when the model supports them |
 
 The limits and masks never touch the structure: bars still end where they should, and a generated bar keeps the
-scene's time signature. POLY LIM and DENS LIM also apply to **EXACT** rhythm and **REMIX**, and win over them.
+scene's time signature. POLY LIM and DENS LIM also apply to **EXACT** rhythm and **RE-PITCH**, and win over them.
 
 Long scenes are generated in steps: the model writes **BARS/STEP** bars of **TRK/STEP** tracks at a time, sliding its
 **CONTEXT** window along the scene. The windows follow what you painted: an AR track keeps its own last bars in view

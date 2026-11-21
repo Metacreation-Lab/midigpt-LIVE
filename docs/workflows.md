@@ -46,7 +46,7 @@ Change a few bars of a part, not all of it.
 
 1. On the target track, turn on **RHYTHM** and choose **EXACT** to keep onsets where you draw them, or **GRID** for
    a looser feel.
-2. Or turn on **REMIX** to keep the rhythm of the existing notes and vary their pitches (and durations with **P+D**).
+2. Or turn on **RE-PITCH** to keep the rhythm of the existing notes and vary their pitches (and durations with **P+D**).
 3. Lock the key with **SCALE**, **ROOT** and **MODE**.
 
 <video src="assets/video/masks.mp4" poster="assets/video/masks.jpg" autoplay muted loop playsinline></video>

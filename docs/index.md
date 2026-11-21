@@ -18,12 +18,13 @@ the bars you choose, and writes the result back as takes you can audition, rever
 - **Fill in bars.** Paint the bars to rewrite on any track. The rest of the scene stays as it is and is used as
   context.
 - **Continue or create tracks.** Turn on **AR** to write a whole track, including one that has no clip yet.
-- **Steer the output.** Polyphony, note length, density, scale, register, rhythm and remix per track; temperature,
+- **Steer the output.** Polyphony, note length, density, scale, register, rhythm and re-pitch per track; temperature,
   top-p, top-k and seed for the whole request.
 - **Takes.** Generate up to 16 versions at once, switch between them while the music plays, go back to the original,
   or keep one.
 - **Runs on your computer.** The model runs in a local server, with no GPU needed. Nothing leaves your machine
   unless you point the device at a server elsewhere.
+- **SETTINGS.** Click the MIDI-GPT mark, top-left, for a larger font size and hover hints on a few controls.
 
 </div>
 

@@ -15,9 +15,10 @@
 
 - **Fill in bars**: paint the bars to rewrite on any track; the rest of the scene stays as it is and is used as context.
 - **Continue or create tracks**: turn on **AR** to generate a whole track, including one that has no clip yet.
-- **Steer the output**: polyphony, note length, density, scale, register, rhythm and remix per track; temperature, top-p and top-k for the whole request.
+- **Steer the output**: polyphony, note length, density, scale, register, rhythm and re-pitch per track; temperature, top-p and top-k for the whole request.
 - **Takes**: generate up to 16 versions at once, step through them in place, go back to the original, or keep one.
 - **Runs on your computer**: the model runs in a local server; nothing leaves your machine unless you point the device at a server elsewhere.
+- **SETTINGS**: click the MIDI-GPT mark, top-left, for a larger font size and hover hints on a few controls.
 
 > [!WARNING]
 > **MIDI-GPT for Live is in beta.** It works, but it hasn't been used on many machines or sets yet, and some combinations of settings still go wrong. Please [report what you find](#reporting-bugs): small things too.
@@ -258,7 +259,7 @@ The server can run on another computer, such as a studio machine with more power
 |---|---|
 | **SCALE** · ROOT · MODE · REGISTER | keep notes in a key and between two pitches |
 | **RHYTHM** · UNIT · GRID / EXACT | guide onsets toward a grid, or place them exactly where you draw them |
-| **REMIX** · AMOUNT · P+D | vary the existing notes instead of writing new ones: AMOUNT is the share of the notes that change (at least one), pitch only or pitch and duration |
+| **RE-PITCH** · AMOUNT · P+D | vary the existing notes instead of writing new ones: AMOUNT is the share of the notes that change (at least one), pitch only or pitch and duration |
 
 The **ENGINE** page holds the model choice; **CONTEXT** (how many bars the model sees at once); **BARS/STEP** and **TRK/STEP** (how much is generated per step); **ATTEMPTS**; polyphony and density hard limits; **MASK P / K**; and **VELOCITY** and **MICRO**timing when the model supports them.
 
@@ -270,7 +271,7 @@ When a request fails, the readout under the takes says what went wrong and what 
 
 - **DENSITY** only applies to drum tracks; **POLY** and **LENGTH** only to melodic tracks.
 - **REGISTER** only applies with **SCALE** on.
-- **REMIX** replaces the rhythm settings on the same track. **POLY LIM** and **DENS LIM** win over it: a wider chord or a fuller bar comes back with fewer notes.
+- **RE-PITCH** replaces the rhythm settings on the same track. **POLY LIM** and **DENS LIM** win over it: a wider chord or a fuller bar comes back with fewer notes.
 - The scene needs at least **CONTEXT** bars; lower it for short clips.
 - The first generation after the server starts is slower while the model loads.
 - On older computers, `yellow_small` is noticeably faster.

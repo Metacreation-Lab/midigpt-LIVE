@@ -38,7 +38,7 @@ var ACC = T.led, INK = T.ink, LAB = T.lab, HUD = T.hud;
 var W = 960, H = 640;
 var g = null;
 var REGION = jsarguments.length > 1 ? String(jsarguments[1]) : "all";
-var REGIONS = { top: [788, 2, 168, 34], roll: [4, 36, 952, 220], main: [4, 256, 684, 264], output: [688, 256, 268, 264],
+var REGIONS = { top: [4, 2, 952, 34], roll: [4, 36, 952, 220], main: [4, 256, 684, 264], output: [688, 256, 268, 264],
                 masks: [4, 520, 952, 118], all: [0, 0, 960, 640] };
 var RX = REGIONS[REGION] || REGIONS.all;
 function inRegion(name) { return REGION === "all" || REGION === name; }
@@ -119,18 +119,24 @@ var S = {
     server: { online: 0, latency: 0, url: "", caps: { mask: 0, remix: 0, rhythm: 0, scales: [], units: [], vel: 0, micro: 0, attrs: [] }, res: 12 },
     gen: { status: "idle", t0: 0, elapsed: 0, notes: 0, seed: 0, att: 0, tps: 0, ctx: 0, maxctx: 0, takes: [], cur: -1, orig: 0 },
     err: null,
-    tagging: 0
+    tagging: 0,
+    prefs: { font: 1, hints: 0 },
+    settings_open: 0
 };
 var NOTESDATA = [];   // per track (S.tracks order), per bar
 var ui = { page: "main", scroll: { row: 0, bar: 0 }, anim: {}, press: null, takePage: 0,
-           setup: { sel: 0, picked: {}, scroll: 0, browseFam: null, wiz: null, resetArm: 0 }, editingUrl: false, flash: null, genreOpen: false };
+           setup: { sel: 0, picked: {}, scroll: 0, browseFam: null, wiz: null, resetArm: 0 }, editingUrl: false, flash: null, genreOpen: false,
+           hoverKey: null, hoverX: 0, hoverY: 0 };
 var errSeen = null;   // the fault the person has not cleared yet (cleared locally; a new one replaces it)
 
 var lastKey = null, notesVer = 0;
 function panel_state(json) {
     json = joinParts("state", json);
     if (json === null) return;
+    var oldFont = S.prefs ? S.prefs.font : 1;
     try { S = JSON.parse(json); } catch (e) { post("midigpt_panel: bad state\n"); return; }
+    if (!S.prefs) S.prefs = { font: 1, hints: 0 };   // a core reloaded without this script (dev bridge)
+    if (S.prefs.font !== oldFont) LABEL_W = {};      // its cached widths are in the old scale
     if (S.err && (!errSeen || errSeen.id !== S.err.id)) errSeen = ext({ t: now() }, S.err);
     if (!S.err) errSeen = null;
     if (ui.setup.sel >= S.tracks.length) ui.setup.sel = Math.max(0, S.tracks.length - 1);
@@ -164,7 +170,9 @@ function joinParts(kind, msg) {
 function page(name) { if (ui.page === name) return; ui.page = String(name); if (ui.page !== "setup") ui.editingUrl = false; if (ui.page !== "main") ui.seedEditing = false; redraw(); }
 // what this region draws, as a string: repaint when it changes
 function regionKey() {
-    var c = cur(), base = ui.page + "|";
+    // prefs/settings_open are drawn by every region (the SETTINGS popup spans the whole window): any
+    // region's key must change when they do, or only the region a click landed in would redraw.
+    var c = cur(), base = ui.page + "|" + S.prefs.font + "|" + S.prefs.hints + "|" + S.settings_open + "|";
     switch (REGION) {
         case "top": return base;
         case "roll": return base + JSON.stringify([S.tracks, S.bars, S.ts, S.cur, S.gen.status, S.gen.takes, S.gen.cur, S.gen.picked, S.gen.dropped, S.engine.model, S.server.online, S.server.latency, S.scene]);
@@ -194,18 +202,19 @@ function caps() { return S.server.caps || {}; }
 function hasAttr(name) { var a = caps().attrs; return !!(a && a.indexOf(name) >= 0); }
 
 // ------------------------------------------------------------------ text
+function fontScale() { return S.prefs ? S.prefs.font || 1 : 1; }
 function txt(x, y, s, size, col, align, spacing, weight) {
     g.save();
-    g.font = (weight || 700) + " " + size + "px";
+    g.font = (weight || 700) + " " + (size * fontScale()) + "px";
     g.letterSpacing = (spacing == null ? 1 : spacing) + "px";
     g.fillStyle = col; g.textBaseline = "middle"; g.textAlign = align || "left";
     g.fillText(s, x, y);
     g.restore();
 }
 
-// the largest size (down to 60 %) at which s fits in maxW
+// the largest size (down to 60 %) at which s fits in maxW, measured at the current font scale
 function fitSize(s, size, spacing, maxW) {
-    g.save(); g.font = "700 " + size + "px"; g.letterSpacing = spacing + "px";
+    g.save(); g.font = "700 " + (size * fontScale()) + "px"; g.letterSpacing = spacing + "px";
     var w = g.measureText(s).width; g.restore();
     return w <= maxW ? size : Math.max(size * 0.6, size * maxW / w);
 }
@@ -396,7 +405,7 @@ var TOGGLES = {
     "SHUFFLE": { get: function () { return S.checks.shuffle; }, set: function (v) { S.checks.shuffle = v; send("engine", "shuffle", v); } },
     "SCALE": { get: function () { return S.masks.scale; }, set: function (v) { S.masks.scale = v; send("mask", "scale_on", v); }, dim: function () { return !caps().mask; } },
     "RHYTHM": { get: function () { return S.masks.rhythm; }, set: function (v) { S.masks.rhythm = v; send("mask", "rhythm", v); }, dim: function () { return !caps().rhythm; } },
-    "REMIX": { get: function () { return S.masks.remix; }, set: function (v) { S.masks.remix = v; send("mask", "remix", v); }, dim: function () { return !caps().remix; } },
+    "REMIX": { label: "RE-PITCH", get: function () { return S.masks.remix; }, set: function (v) { S.masks.remix = v; send("mask", "remix", v); }, dim: function () { return !caps().remix; } },
     "P+D": { get: function () { return S.masks.pd; }, set: function (v) { S.masks.pd = v; send("mask", "pd", v); }, dim: function () { return !caps().remix || !S.masks.remix; } },
     "VELOCITY": { get: function () { return S.engine.velocity; }, set: function (v) { S.engine.velocity = v; send("engine", "velocity", v); }, dim: function () { return !caps().vel; } },
     "MICRO": { get: function () { return S.engine.micro; }, set: function (v) { S.engine.micro = v; send("engine", "microtiming", v); }, dim: function () { return !caps().micro; } }
@@ -423,7 +432,7 @@ function drawKnob(def, name, cx, cy, r) {
     if (def.labelW) ls = fitSize(lab, ls, 1, def.labelW);    // a long name shrinks to its column
     txt(cx, ly, lab, ls, dim ? T.dim : LAB, "center", 1);
     txt(cx, ly + 10, auto ? "AUTO" : def.fmt(), 6.6, dim ? T.dim : auto ? ACC : INK, "center", auto ? 1 : 0.6);
-    hit("knob", cx - r * 1.35, cy - r * 1.35, r * 2.7, r * 2.7, { def: def, name: name, cx: cx, cy: cy, r: r, dim: dim });
+    hit("knob", cx - r * 1.35, cy - r * 1.35, r * 2.7, r * 2.7, { def: def, name: name, cx: cx, cy: cy, r: r, dim: dim, hintKey: "knob_" + name });
 }
 function drawToggle(def, name, x, y, w, h) {
     var on = def.get() ? 1 : 0, dim = def.dim ? def.dim() : false, key = name + x + y;
@@ -439,7 +448,7 @@ function drawToggle(def, name, x, y, w, h) {
     else { g.beginPath(); g.arc(lx, lyy, 2, 0, Math.PI * 2); g.fillStyle = T.togLedOff; g.fill(); }
     g.globalAlpha = 1;
     txt(x + w / 2, y - 9, def.label || name, 6.6, dim ? T.dim : LAB, "center", 0.9);
-    if (!dim) hit("toggle", x - 8, y - 6, w + 16, h + 12, { def: def });
+    if (!dim) hit("toggle", x - 8, y - 6, w + 16, h + 12, { def: def, hintKey: "toggle_" + name });
 }
 function drawKey(x, y, w, h, label, lit, onClick, opts) {
     opts = opts || {};
@@ -714,7 +723,7 @@ function hudStats(x, y, w, h) {
         var cx = x + 8 + (r % 3) * cw, cy = y + 17 + (h - 17) * (Math.floor(r / 3) + 1) / 3;
         txt(cx, cy, rows[r][0], 5.8, rgba(rows[r][2], 0.6), "left", 0.6);
         var lw = LABEL_W[rows[r][0]];
-        if (lw === undefined) { g.save(); g.font = "700 5.8px"; g.letterSpacing = "0.6px"; lw = LABEL_W[rows[r][0]] = g.measureText(rows[r][0]).width; g.restore(); }
+        if (lw === undefined) { g.save(); g.font = "700 " + (5.8 * fontScale()) + "px"; g.letterSpacing = "0.6px"; lw = LABEL_W[rows[r][0]] = g.measureText(rows[r][0]).width; g.restore(); }
         txt(cx + cw - 6, cy, rows[r][1], fitSize(rows[r][1], 7.5, 0.4, cw - 6 - lw - 5), rows[r][2], "right", 0.4);   // never over its label
     }
 }
@@ -725,7 +734,7 @@ function hudFault(x, y, w, h) {
     if (age < 2400) again(300 - age % 300);                              // the blink: each half-period, not every frame
     else if (E.retry && !E.retried) again(1000 - (age % 1000));          // the retry countdown: each second
     var tag = E.warn ? "CAUTION" : E.notSent ? "NOT SENT" : "FAULT";
-    g.font = "700 6.4px"; g.letterSpacing = "1px";
+    g.font = "700 " + (6.4 * fontScale()) + "px"; g.letterSpacing = "1px";
     var tw = g.measureText(tag).width + 12;
     g.letterSpacing = "0px";
     if (!blink) { g.fillStyle = col; g.fillRect(x + 8, y + 5, tw, 11); }
@@ -754,7 +763,7 @@ function hudModels(x, y, w, h) {
     var c = caps(), iy = y + h - 26;
     g.strokeStyle = rgba(HUD.g, 0.2); g.lineWidth = 0.8; g.beginPath(); g.moveTo(x + 6, iy - 8); g.lineTo(x + w - 6, iy - 8); g.stroke();
     txt(x + 10, iy, "CTX " + S.engine.dims.join("/") + " BARS  ·  RES " + (S.server.res || 12) + "/Q", 5.8, rgba(HUD.g, 0.7), "left", 0.6);
-    var feats = [c.mask ? "SCALE" : null, c.rhythm ? "RHYTHM" : null, c.remix ? "REMIX" : null, c.vel ? "VELOCITY" : null, c.micro ? "MICROTIMING" : null].filter(function (s) { return s; });
+    var feats = [c.mask ? "SCALE" : null, c.rhythm ? "RHYTHM" : null, c.remix ? "RE-PITCH" : null, c.vel ? "VELOCITY" : null, c.micro ? "MICROTIMING" : null].filter(function (s) { return s; });
     txt(x + 10, iy + 12, feats.join(" · "), 5.8, rgba(HUD.m, 0.85), "left", 0.6);
 }
 // rhythm editor: GRID = soft pull toward the unit (strength); EXACT = the onsets per bar (first one fixed at the downbeat)
@@ -952,6 +961,11 @@ function paint() {
     if (inRegion("main")) paintMain(sp);
     if (inRegion("output")) paintOutput();
     if (inRegion("masks")) paintMasks();
+    // drawn last (on top), by every region: each one clips to its own box, so together they tile the
+    // full-window popup seamlessly (same trick as the rest of the panel: everything draws in the
+    // 960x640 global space and g.translate(-RX[0],-RX[1]) crops it to this instance's slice).
+    if (S.settings_open) paintSettingsModal();
+    else if (ui.hoverKey) showHint(ui.hoverKey, ui.hoverX, ui.hoverY);
     g.restore();
     paintMs.push(now() - t0);
     if (paintMs.length >= 20) { send("perf", REGION, Math.round(paintMs.reduce(function (a, b) { return a + b; }, 0) / paintMs.length), Math.max.apply(null, paintMs)); paintMs = []; }
@@ -963,6 +977,7 @@ function paintTop() {
             drawKey(k[1], k[2], k[3], k[4], k[0], ui.page === p, function () { outlet(0, "page", ui.page === p ? "main" : p); urlEdit(false); }, { size: 7.4 });
         })(SP.top_keys[i]);
     }
+    hit("logo", 8, 4, 180, 28, {});   // the MIDI-GPT wordmark baked into the page background: opens SETTINGS
 }
 function paintMain(sp) {
     var i, page = SP.pages[sp], c = cur();
@@ -1018,11 +1033,73 @@ function paintOutput() {
 }
 function paintMasks() {
     var i, E = SP.extras, c = cur();
-    bayTitle(E.bay[0], E.bay[1], E.bay[2], "MASKS", "PITCH · RHYTHM · REMIX · " + (c ? c.short + (isTarget(c) ? "" : " · NOT GENERATED") : "—"),
+    bayTitle(E.bay[0], E.bay[1], E.bay[2], "MASKS", "PITCH · RHYTHM · RE-PITCH · " + (c ? c.short + (isTarget(c) ? "" : " · NOT GENERATED") : "—"),
              c && !isTarget(c) ? ACC : null);
     for (i = 0; i < E.toggles.length; i++) { var et = E.toggles[i]; drawToggle(TOGGLES[et[0]], et[0], et[1], et[2], et[3], et[4]); }
     for (i = 0; i < E.knobs.length; i++) { var ek = E.knobs[i]; drawKnob(KNOBS[ek[0]], ek[0], ek[1], ek[2], ek[3]); }
     hudRhythm(E.rhythm[0], E.rhythm[1], E.rhythm[2], E.rhythm[3]);
+}
+
+// ------------------------------------------------------------------ SETTINGS popup (logo, top-left)
+// Entirely vector-drawn (no new sprites/background art) and drawn by every region in the same global
+// 960x640 space as the rest of the panel: see the note at its call site in paint().
+var FONT_PRESETS = [["100%", 1], ["115%", 1.15], ["130%", 1.3]];
+function paintSettingsModal() {
+    var cx0 = 270, cy0 = 180, cw = 420, ch = 280, midx = cx0 + cw / 2;
+    hit("settings-backdrop", 0, 0, 960, 640, {});
+    g.fillStyle = "rgba(0,0,0,0.6)"; g.fillRect(0, 0, 960, 640);
+    g.fillStyle = T.screenBg; round(cx0, cy0, cw, ch, 10); g.fill();
+    g.strokeStyle = T.dashOff; g.lineWidth = 1; round(cx0 + 0.5, cy0 + 0.5, cw - 1, ch - 1, 10); g.stroke();
+    txt(midx, cy0 + 28, "SETTINGS", 10, LAB, "center", 1.4, 700);
+    txt(cx0 + 28, cy0 + 60, "FONT SIZE", 6.5, T.dim, "left", 0.8);
+    // drawKey/drawToggle take (x, y) as their rect's TOP-LEFT corner, not a center
+    var fx0 = cx0 + (cw - (FONT_PRESETS.length * 68 + (FONT_PRESETS.length - 1) * 18)) / 2;
+    for (var i = 0; i < FONT_PRESETS.length; i++) {
+        var p = FONT_PRESETS[i], fx = fx0 + i * 86, fy = cy0 + 86, sel = Math.abs((S.prefs.font || 1) - p[1]) < 0.005;
+        drawKey(fx, fy, 68, 28, p[0], sel, (function (v) { return function () { S.prefs.font = v; LABEL_W = {}; send("prefs", "font", v); }; })(p[1]), { size: 7.2 });
+    }
+    drawToggle({ label: "HOVER HINTS", get: function () { return S.prefs.hints; }, set: function (v) { S.prefs.hints = v; send("prefs", "hints", v); } },
+               "HINTS", midx - 22, cy0 + 160, 44, 16);
+    txt(midx, cy0 + 196, "HOVER A CONTROL TO SEE WHAT IT DOES", 5.8, T.dim, "center", 0.4);
+    drawKey(midx - 34, cy0 + ch - 50, 68, 28, "CLOSE", false, function () { send("settings", 0); }, { size: 7.2 });
+}
+
+// A short, plain-English explanation for a knob or toggle, shown near the cursor when hints are on
+// (onidle/showHint() below). Keyed by "knob_<NAME>" / "toggle_<NAME>", NAME being the name drawKnob()/
+// drawToggle() are called with (panel_spec.js / TOGGLES) -- so any control gets a hint just by adding
+// its entry here, no call-site changes needed. A living first draft, not a complete set: a missing key
+// is just a silent no-op.
+var HINTS = {
+    "knob_CONTEXT": "How many bars the model sees at once. AUTO lets the server pick per step.",
+    "knob_AMOUNT": "The share of this track's notes that change. At least one note always changes.",
+    "toggle_REMIX": "Vary the existing notes instead of writing new ones: keeps the rhythm, changes the pitches.",
+    "toggle_RHYTHM": "Guide where notes start: GRID leans onsets toward a beat subdivision, EXACT places them where you draw.",
+    "knob_POLY LIM": "A hard limit on notes starting together. Wins over RE-PITCH and EXACT rhythm.",
+    "knob_DENS LIM": "A hard limit on notes per bar. Wins over RE-PITCH and EXACT rhythm.",
+    "knob_PROB": "Generates only a random subset of the painted bars; the rest stay as context."
+};
+function showHint(key, x, y) {
+    var s = HINTS[key];
+    if (!s || !S.prefs.hints) return;
+    g.save();
+    var size = 6.2, pad = 8;
+    g.font = "400 " + (size * fontScale()) + "px";
+    var w = Math.min(260, g.measureText(s).width + pad * 2);
+    var lines = [s];
+    if (w >= 260) {   // wrap at ~40 chars so long hints do not run off the window
+        lines = []; var words = s.split(" "), line = "";
+        for (var i = 0; i < words.length; i++) {
+            var next = line ? line + " " + words[i] : words[i];
+            if (next.length > 40 && line) { lines.push(line); line = words[i]; } else line = next;
+        }
+        if (line) lines.push(line);
+        w = 260;
+    }
+    var h = lines.length * 12 + pad * 2, bx = Math.min(960 - w - 6, x + 12), by = Math.min(640 - h - 6, y + 12);
+    g.restore();
+    g.fillStyle = "rgba(10,10,10,0.92)"; round(bx, by, w, h, 5); g.fill();
+    g.strokeStyle = T.dashOff; g.lineWidth = 1; round(bx + 0.5, by + 0.5, w - 1, h - 1, 5); g.stroke();
+    for (var li = 0; li < lines.length; li++) txt(bx + pad, by + pad + li * 12 + 6, lines[li], size, "#e6e6e6", "left", 0.2, 400);
 }
 function setupKey(k) {
     var lab = k[0], lit = false, fn = null;
@@ -1063,9 +1140,9 @@ function preflight() {
     if (!E.bps_auto && E.bps > ctx) out.push(["BARS/STEP " + E.bps + " > CONTEXT " + ctx, "LOWER BARS/STEP"]);
     var c = cur();
     if (c && isTarget(c)) {
-        if (X.remix && X.rhythm) out.push([c.short + ": REMIX + RHYTHM", "TURN ONE OFF"]);
-        if (X.remix && !(+X.amount > 0)) out.push([c.short + ": REMIX AT 0%", "RAISE AMOUNT"]);   // 0 changes nothing
-        if ((X.remix || (X.rhythm && X.exact)) && !E.tps_auto && E.tps > 1) out.push([c.short + ": " + (X.remix ? "REMIX" : "EXACT RHYTHM") + " NEEDS TRK/STEP 1", "SET TRK/STEP TO 1"]);
+        if (X.remix && X.rhythm) out.push([c.short + ": RE-PITCH + RHYTHM", "TURN ONE OFF"]);
+        if (X.remix && !(+X.amount > 0)) out.push([c.short + ": RE-PITCH AT 0%", "RAISE AMOUNT"]);   // 0 changes nothing
+        if ((X.remix || (X.rhythm && X.exact)) && !E.tps_auto && E.tps > 1) out.push([c.short + ": " + (X.remix ? "RE-PITCH" : "EXACT RHYTHM") + " NEEDS TRK/STEP 1", "SET TRK/STEP TO 1"]);
     }
     if (S.sample.topk && E.maskk && E.maskk >= S.sample.topk) out.push(["MASK K ≥ TOP-K", "LOWER MASK K"]);
     if (E.maskp && E.maskp >= S.sample.topp) out.push(["MASK P ≥ TOP-P", "LOWER MASK P"]);
@@ -1157,6 +1234,8 @@ function onclick(x, y, button, cmd, shift, caps_, opt) {
     else if (h.kind === "setup-row" && shift) { if (ui.setup.picked[h.d.i]) delete ui.setup.picked[h.d.i]; else ui.setup.picked[h.d.i] = 1; }
     else if (h.kind === "setup-row") { ui.setup.sel = h.d.i; ui.setup.browseFam = null; ui.setup.picked = {}; }
     else if (h.kind === "url") { urlEdit(true); }
+    else if (h.kind === "logo") { send("settings", 1); }
+    else if (h.kind === "settings-backdrop") { send("settings", 0); }
     redraw();
     lastKey = regionKey();    // drawn as it is now: the core's echo of this change is not a second repaint
 }
@@ -1216,7 +1295,16 @@ ondrag.local = 1;
 // a knob drag sends at most every 60 ms, and once more on release
 var lastEmit = 0;
 function emitThrottled(def) { var t = now(); if (t - lastEmit > 60) { lastEmit = t; def.emit(); } }
-function onidle(x, y) {}
+// Hover hints: only while S.prefs.hints is on and the SETTINGS popup is closed. No-op (cheap) otherwise,
+// so idle mouse movement costs nothing when the feature is off (the default).
+function onidle(x, y) {
+    if (!S.prefs.hints || S.settings_open) return;
+    x += RX[0]; y += RX[1];
+    var h = find(x, y), key = h && h.d && h.d.hintKey && HINTS[h.d.hintKey] ? h.d.hintKey : null;
+    if (key === ui.hoverKey && x === ui.hoverX && y === ui.hoverY) return;
+    ui.hoverKey = key; ui.hoverX = x; ui.hoverY = y;
+    redraw();
+}
 onidle.local = 1;
 // Scroll wheel and trackpad: vertical moves the roll's tracks (or the SETUP list), horizontal or Shift+wheel
 // its bars. A trackpad sends many small steps, a wheel one per notch: they add up to whole rows / bars.
